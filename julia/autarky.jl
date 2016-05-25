@@ -68,6 +68,28 @@ function defaultTaxes()
 end
 
 """
+    function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1, nb=150, bmin=0)
+Computes the perfect risk sharing model and formats it as an autarkic model
+"""
+function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
+                            nb=150, bmin=0)
+
+  if( T[1] < 0 || P[1] < 0 )
+    T1, P1 = defaultTaxes()
+    nT1 = length(T1)
+    P_dup = kron(P1,P1)
+    T_dup =  [ T1[i] + T1[j] for i in 1:nT1, j in 1:nT1 ][:]
+    #     # Possibly includes duplicates
+    # T_un = unique(T1)
+    # idx_map = [  ]
+  end
+
+  bgrid = linspace( bmin, minimum(T) / ( r - gam ), nb )
+
+  return AutarkyModel( r, betta, gam, P, T, length(T), bgrid, nb )
+end
+
+"""
 Type defining the autarky solution.  Includes matrices for V,
 bprime and g, as well as the number of iterations required and
 the convergence distance.  Also contains the model definition
