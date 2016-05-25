@@ -34,13 +34,11 @@ type AutarkyModel
   # B grid
   bgrid::LinSpace # Debt grid
   nb::Int         # Length of b grid
-
 end
-
 
 """
     AutarkyModel( r, betta, gam, T, P, nb, bmin )
-Constructor for the autarky solution object
+Constructor for the autarky model object
 """
 function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
                           nb=150, bmin=0)
@@ -52,7 +50,6 @@ function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
   bgrid = linspace( bmin, minimum(T) / ( r - gam ), nb )
 
   return AutarkyModel( r, betta, gam, P, T, length(T), bgrid, nb )
-
 end
 
 """
@@ -68,7 +65,34 @@ function defaultTaxes()
         .1 .1 .2 .6 ]
 
   return T, P
+end
 
+"""
+Type defining the autarky solution.  Includes matrices for V,
+bprime and g, as well as the number of iterations required and
+the convergence distance.  Also contains the model definition
+"""
+type AutarkySol
+
+  # The model
+  am::AutarkyModel
+
+  # The solution objects
+  V::Matrix
+  bprime::Matrix
+  g::Matrix
+
+  # Algorithm reports
+  iter::Int
+  dist::Float64
+end
+
+"""
+    AutarkySol( am, V, bprime, g, iter, dist )
+Constructor for the autarky solution object
+"""
+function AutarkySol( am, V, bprime, g, iter, dist )
+  return AutarkySol( am, V, bprime, g, iter, dist )
 end
 
 """
@@ -104,7 +128,7 @@ end
                       vOut::Matrix, bOut::Matrix, gOut::Matrix )
 Apply the Bellman operator for a given model and initial value.
 ##### Arguments
-- `am::AutarkyMoedl` : Instance of `AutarkyModel`
+- `am::AutarkyModel` : Instance of `AutarkyModel`
 - `v::Matrix`: Current guess for the value function
 - `vOut::Matrix` : Storage for output value function
 - `bOut::Matrix` : Storage for output policy function
@@ -169,9 +193,11 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
       copy!(V, Vprime)
       mod(it, 50) == 0 ? println(it, "\t", dist) : nothing
     end
-    return Vprime, bprime, g, it, dist
+    return AutarkySol( am, Vprime, bprime, g, it, dist )
 end
 
-# plot( hh.bgrid, kk[1] )
-# plot( hh.bgrid, [ kk[2] hh.bgrid ], xlims=(1.8,2), ylims=(1.8,2) )
-# plot( hh.bgrid, kk[3], xlims=(1.5,2), ylims=(0,.15) )
+# hh = AutarkyModel()
+# kk = solve_am(hh)
+# plot( hh.bgrid, kk.V )
+# plot( hh.bgrid, [ kk.bprime hh.bgrid ], xlims=(1.8,2), ylims=(1.8,2) )
+# plot( hh.bgrid, kk.g, xlims=(1.5,2), ylims=(0,.15) )
