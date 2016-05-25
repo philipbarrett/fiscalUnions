@@ -77,11 +77,8 @@ function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
   if( T[1] < 0 || P[1] < 0 )
     T1, P1 = defaultTaxes()
     nT1 = length(T1)
-    P_dup = kron(P1,P1)
-    T_dup =  [ T1[i] + T1[j] for i in 1:nT1, j in 1:nT1 ][:]
-    #     # Possibly includes duplicates
-    # T_un = unique(T1)
-    # idx_map = [  ]
+    P = kron(P1,P1)
+    T =  [ .5 * ( T1[i] + T1[j] ) for i in 1:nT1, j in 1:nT1 ][:]
   end
 
   bgrid = linspace( bmin, minimum(T) / ( r - gam ), nb )
