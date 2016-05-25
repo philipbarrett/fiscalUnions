@@ -195,7 +195,7 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
     end
     return AutarkySol( am, Vprime, bprime, g, it, dist )
 end
-
+#
 # hh = AutarkyModel()
 # kk = solve_am(hh)
 # plot( hh.bgrid, kk.V )

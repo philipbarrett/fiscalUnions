@@ -31,8 +31,8 @@ function sim_am( as::AutarkySol, n::Int = 1_000_000, burn::Int = 10_000,
       out[i,2] = out[i-1,3]
         # Carry over b from previous period
     end
-    out[i,3] = bprimefn[ out[n,2], taxIdx[i] ]
-    out[i,4] = gfn[ out[n,2], taxIdx[i] ]
+    out[i,3] = bprimefn[ out[i,2], taxIdx[i] ]
+    out[i,4] = gfn[ out[i,2], taxIdx[i] ]
         # Spending and next period debt
   end
   return out[ (burn+1):end, : ]
