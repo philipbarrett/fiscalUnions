@@ -26,10 +26,29 @@ mean( asim, 1 )
 mean( prs_sim, 1 ) / 2
 
 ### 2. Polygon stuff ###
-dirs  = [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ]
-dists = [ 1 ; 1 ; 1 ; 1 ]
+dirs  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ] )
+dists = Vector{Float64}( [ 1, 1, 1, 1 ] )
 z = dirsToPts( dirs, dists )
 
-dirs  = [ -1 0 ; 0 1 ; 1 1 ; 1 0 ; 0 -1 ]
-dists = [ 1 ; 1 ; 1 ; 1 ; 1 ]
+dirs  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 1 ; 1 0 ; 0 -1 ] )
+dists = Vector{Float64}( [ 1, 1, 1, 1, 1 ] )
 z = dirsToPts( dirs, dists )
+
+dirs_ret, dist_ret = ptsToDirs( z )
+z_ret = dirsToPts( dirs_ret, dist_ret )
+
+s = polygon( z, dirs, dists )
+q = polygonP( pts = z )
+r = polygonD( dirs = dirs, dists = dists )
+
+q.pts == s.pts == r.pts
+
+dirs2  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ] )
+dists 2= Vector{Float64}( [ 1, 1, 1, 1 ] )
+z = dirsToPts( dirs2, dists2 )
+
+t = polygonP( pts = z )
+e = add( s, s, dirs )
+e = add( s, s, dirs )
+
+add( t, s )

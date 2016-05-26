@@ -6,8 +6,7 @@ mm = Matrix[]
 
 isempty(mm)
 
-ff = [ 1 2
-        3 4 ]
+ff = [ 1 2 ; 3 4 ]
 
 isempty(ff)
 isempty(xx)
@@ -16,3 +15,10 @@ qq = zeros(Float64, 3, 2)
 
 yy = [1; 5 ]
 zz = ff \ yy
+
+function testFun( )
+  return [0,0,0]
+end
+
+dd=testFun()
+typeof(dd)
