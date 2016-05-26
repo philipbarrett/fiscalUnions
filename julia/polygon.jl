@@ -101,8 +101,11 @@ end
 Addiiton functionality.  Provides either an inner or out approximation
 """
 function add( poly1::polygon, poly2::polygon, dirs, outer=true )
-  dists = max( [dists1 ; dists2 ] * dirs', 1 )
+  dists = max( [poly1.pts ; poly2.pts ] * dirs', 1 )
       # The distances in each direction
+
+println(dists)
+
   if( outer )
     return polygon( dists=dists, dirs=dirs )
   end
