@@ -58,7 +58,7 @@ of the constructor
 """
 function defaultTaxes()
 
-  T = [ .04, .06, .08, .1 ]
+  T = [ .02, .04, .06, .08 ]
   P = [ .6 .2 .1 .1
         .2 .4 .3 .1
         .1 .3 .4 .2
