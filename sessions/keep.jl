@@ -38,8 +38,8 @@ dirs_ret, dist_ret = ptsToDirs( z )
 z_ret = dirsToPts( dirs_ret, dist_ret )
 
 s = polygon( z, dirs, dists )
-q = polygonP( pts = z )
-r = polygonD( dirs = dirs, dists = dists )
+q = polygon( pts = z )
+r = polygon( dirs = dirs, dists = dists )
 
 q.pts == s.pts == r.pts
 
@@ -47,15 +47,15 @@ dirs2  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ] )
 dists2= Vector{Float64}( [ 1, 1, 1, 1 ] )
 z = dirsToPts( dirs2, dists2 )
 
-t = polygonP( pts = z )
-e = add( s, s, dirs )
+t = polygon( pts = z )
+ee = add( s, s, dirs )
 f = add( s, s, dirs, false )
 g = add( s, s, dirs2 )
 h = add( s, s, dirs2, false )
 # e = add( s, s, dirs )
 
 add( t, s, dirs2 )
-apoly = [ t, e, r, q ]
+apoly = [ t, ee, r, q ]
 jj = add( apoly, dirs2 )
 
 hh = 4 * s
@@ -76,3 +76,6 @@ oo = gScan(jj)
 
 kk = [ jj ; .3 -1 ]
 pp = gScan(kk)
+
+ll = randn( 1000, 2 )
+@time qq = gScan( ll )

@@ -18,18 +18,19 @@ type polygon
 end
 
 """
-    polygon( ; pts=Matrix{Float64}([]) )
-    polygon( ; dirs=Matrix{Float64}([]), dists=Vector{Float64}([]) )
+    polygonP( ; pts=Matrix{Float64}([]) )
+    polygonD( ; dirs=Matrix{Float64}([]), dists=Vector{Float64}([]) )
+    polygonE()
 Constructors for poylgon.  Maitained assumptions are that dirs is ordered
 clockwise and that pts is already a convex hull.
 """
-function polygonP( ; pts=Matrix{Float64}([]) )
-  dirs, dists = ptsToDirs( pts )
-  return polygon( pts, dirs, dists )
-end
+function polygon( ; pts=[ NaN NaN ], dirs=[ NaN NaN ], dists=[NaN]  )
 
-function polygonD( ; dirs=Matrix{Float64}([]), dists=Vector{Float64}([]) )
-  pts = dirsToPts( dirs, dists )
+  if( !isnan( pts[1] ) && isnan( dirs[1] ) )
+    dirs, dists = ptsToDirs( pts )
+  elseif( !isnan( dirs[1] ) && isnan( pts[1] ) )
+    pts = dirsToPts( dirs, dists )
+  end
   return polygon( pts, dirs, dists )
 end
 
@@ -110,9 +111,9 @@ function add( poly1::polygon, poly2::polygon, dirs, outer=true )
   dists = vec( dists1 + dists2 )
 
   if( outer )
-    return polygonD( dirs=dirs, dists=dists )
+    return polygon( dirs=dirs, dists=dists )
   end
-  return polygonP( pts=dirsToPts( dirs, dists ) )
+  return polygon( pts=dirsToPts( dirs, dists ) )
 end
 
 """
@@ -131,9 +132,9 @@ function add( polys::Array{polygon,1}, dirs, outer=true )
   end
 
   if( outer )
-    return polygonD( dirs=dirs, dists=vec( dists ) )
+    return polygon( dirs=dirs, dists=vec( dists ) )
   end
-  return polygonP( pts=dirsToPts( dirs, vec( dists ) ) )
+  return polygon( pts=dirsToPts( dirs, vec( dists ) ) )
 end
 
 """
