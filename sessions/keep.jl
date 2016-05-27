@@ -65,5 +65,14 @@ ll = wtdSum( apoly, [1:4], dirs2 )
 ff = [ 1 0 ; 0 1 ; 0 0 ; .25 .25 ]
 vv = gScan(ff)
 
-gg = randn( 20, 2 )
+gg = [ 0 1; .5 .5 ; .9 .2 ; 1 1 ; 1 0; .3 .6 ; 0 0 ]
 nn = gScan(gg)
+
+hh = [ gg ; .5 1 ]
+mm = gScan(hh)
+
+jj = [ .6 2 ; hh ; .5 1 ]
+oo = gScan(jj)
+
+kk = [ jj ; .3 -1 ]
+pp = gScan(kk)
