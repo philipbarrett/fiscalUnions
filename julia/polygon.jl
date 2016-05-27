@@ -159,18 +159,18 @@ function wtdSum( polys::Array{polygon,1}, wts::Vector, dirs, outer=true )
   return( add( polys2, dirs, outer ) )
 end
 
-"""
-    whichmin( x::Vector )
-Uncovers the location of the minimum of a vector
-"""
-function whichmin( x::Vector )
-  i = 1
-  min_x=minimum(x)
-  while( x[i] > min_x )
-    i+=1
-  end
-  return i
-end
+# """
+#     whichmin( x::Vector )
+# Uncovers the location of the minimum of a vector
+# """
+# function whichmin( x::Vector )
+#   i = 1
+#   min_x=minimum(x)
+#   while( x[i] > min_x )
+#     i+=1
+#   end
+#   return i
+# end
 
 """
     acw( p1, p2, p3 )
@@ -190,7 +190,7 @@ function gScan( pts::Matrix )
 
   N = size(pts)[1]
       # Number of points
-  idx_P = whichmin( pts[:,2] )
+  idx_P = indmin( pts[:,2] )
       # The index fo the minimum y axis
       # TODO: Add a tie breaker in the x dimenson if tied in y
   P = pts[ idx_P, : ]
@@ -202,7 +202,7 @@ function gScan( pts::Matrix )
   else
     otherpts = [ pts[1:(idx_P-1), :] ; pts[(idx_P+1):end, :] ]
   end
-      # The other points
+      # The other (non-P) points
   orderpts = [ pts ; P ]
   orderpts[ 1, : ] = P
       # Initialize the anti-clockwise ordered points
@@ -228,16 +228,9 @@ function gScan( pts::Matrix )
       # Counts number of rows in convex hull
   for( i in 2:N )
     if( acw( out[ M, : ], orderpts[ i, : ], orderpts[ i+1, : ] ) > 0 )
-
-println(out)
-println(orderpts)
-println(i)
-println(M)
-println(acw( out[ M, : ], orderpts[ i, : ], orderpts[ i+1, : ] ))
-
       out[ M + 1, : ] = orderpts[ i, : ]
           # Add to the output if we have a acw angle
-      M =+ 1
+      M += 1
           # Increment counter
     end
   end
