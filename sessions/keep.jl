@@ -44,11 +44,23 @@ r = polygonD( dirs = dirs, dists = dists )
 q.pts == s.pts == r.pts
 
 dirs2  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ] )
-dists 2= Vector{Float64}( [ 1, 1, 1, 1 ] )
+dists2= Vector{Float64}( [ 1, 1, 1, 1 ] )
 z = dirsToPts( dirs2, dists2 )
 
 t = polygonP( pts = z )
 e = add( s, s, dirs )
-e = add( s, s, dirs )
+f = add( s, s, dirs, false )
+g = add( s, s, dirs2 )
+h = add( s, s, dirs2, false )
+# e = add( s, s, dirs )
 
-add( t, s )
+add( t, s, dirs2 )
+apoly = [ t, e, r, q ]
+jj = add( apoly, dirs2 )
+
+hh = 4 * s
+
+ll = wtdSum( apoly, [1:4], dirs2 )
+
+ff = [ 1 0 ; 0 1 ; 0 0 ; .25 .25 ]
+vv = gScan(ff)

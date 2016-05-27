@@ -4,6 +4,9 @@ Philip Barrett, pobarrett@gmail.com
 
 Defines polygon type and various associated methods
 =#
+
+import Base: *
+
 """
     type polygon
 Defines the polygon type with three entries
@@ -98,16 +101,145 @@ end
 
 """
     add( poly1::polygon, poly2::polygon, dirs, outer=true )
-Addiiton functionality.  Provides either an inner or out approximation
+Addition functionality.  Provides either an inner or out approximation
 """
 function add( poly1::polygon, poly2::polygon, dirs, outer=true )
-  dists = max( [poly1.pts ; poly2.pts ] * dirs', 1 )
+  dists1 = maximum( poly1.pts * dirs', 1 )
+  dists2 = maximum( poly2.pts * dirs', 1 )
       # The distances in each direction
-
-println(dists)
+  dists = vec( dists1 + dists2 )
 
   if( outer )
-    return polygon( dists=dists, dirs=dirs )
+    return polygonD( dirs=dirs, dists=dists )
   end
-  return polygon( pts=dirsToPts( dists, dirs ) )
+  return polygonP( pts=dirsToPts( dirs, dists ) )
+end
+
+"""
+    sum( poly1::Array{polygon,1}, poly2::Array{polygon,1}, dirs, outer=true )
+Adds an array of polygons
+"""
+function add( polys::Array{polygon,1}, dirs, outer=true )
+
+  N = length(polys)
+      # Number of polygons to add
+  dists = zeros( size(dirs)[1] )
+      # Initate the distances
+  for( i in 1:N )
+    dists += maximum( polys[i].pts * dirs', 1 )'
+        # Sum the distances
+  end
+
+  if( outer )
+    return polygonD( dirs=dirs, dists=vec( dists ) )
+  end
+  return polygonP( pts=dirsToPts( dirs, vec( dists ) ) )
+end
+
+"""
+    times( poly1::Array{polygon,1}, poly2::Array{polygon,1}, dirs, outer=true )
+Adds an array of polygons
+"""
+function (*)( k::Number, poly::polygon )
+  return polygon( k * poly.pts, poly.dirs, k * poly.dists )
+end
+
+"""
+    wtdSum( polys::Array{polygon,1}, wts::Vector dirs, outer=true )
+Computes a weighted sum of polygons
+"""
+function wtdSum( polys::Array{polygon,1}, wts::Vector, dirs, outer=true )
+  N = length( polys )
+      # Number of polygons
+  polys2 = polys
+      # Initiate scaled polygons with input array
+  for( i in 1:N )
+    polys2[i] = wts[i] * polys[i]
+  end
+  return( add( polys2, dirs, outer ) )
+end
+
+"""
+    whichmin( x::Vector )
+Uncovers the location of the minimum of a vector
+"""
+function whichmin( x::Vector )
+  i = 1
+  min_x=minimum(x)
+  while( x[i] > min_x )
+    i+=1
+  end
+  return i
+end
+
+"""
+    acw( p1, p2, p3 )
+Positive if p1 -> p2 -> p3 is anti-clockwise
+"""
+function acw( p1, p2, p3 )
+  return (p2[1] - p1[1]) * (p3[2] - p1[2]) - (p2[2] - p1[2]) * (p3[1] - p1[1])
+end
+
+"""
+    gScan( pts::Matrix )
+Computes a convex hull using the Graham Scan algortithm
+NEEDS DEBUGGING STILL
+"""
+
+function gScan( pts::Matrix )
+
+  N = size(pts)[1]
+      # Number of points
+  idx_P = whichmin( pts[:,2] )
+      # The index fo the minimum y axis
+      # TODO: Add a tie breaker in the x dimenson if tied in y
+  P = pts[ idx_P, : ]
+      # The initial point
+  if( idx_P == 1 )
+    otherpts = pts[ 2:end, : ]
+  elseif( idx_P == N )
+    otherpts = pts[ 1:(end-1), : ]
+  else
+    otherpts = [ pts[1:(idx_P-1), :] ; pts[(idx_P+1):end, :] ]
+  end
+      # The other points
+  orderpts = [ pts ; P ]
+  orderpts[ 1, : ] = P
+      # Initialize the anti-clockwise ordered points
+  ang = zeros( N - 1 )
+      # The measure of the angle between each point and P.
+
+  ## Order the points anti-clockwise ##
+  for( i in 1:(N-1) )
+    diff = otherpts[i,:] - P
+    cah = diff[1] / norm(diff)
+        # Cosine is adjacent over hypotenuse
+    ang[i] = ( diff[2] > 0 ) ? cah : - 2 - cah
+        # The angle is a negative monotone function of the angle
+  end
+  orderpts[2:N,:] = otherpts[ sortperm(ang, rev=true), : ]
+      # Order the points by the angle measure
+
+  ## Create the output ##
+  out = pts
+  out[ 1, : ] = P
+      # Initialize
+  M = 1
+      # Counts number of rows in convex hull
+  for( i in 2:N )
+    if( acw( out[ M, : ], orderpts[ i, : ], orderpts[ i+1, : ] ) > 0 )
+
+println(out)
+println(orderpts)
+println(i)
+println(M)
+println(acw( out[ M, : ], orderpts[ i, : ], orderpts[ i+1, : ] ))
+
+      out[ M + 1, : ] = orderpts[ i, : ]
+          # Add to the output if we have a acw angle
+      M =+ 1
+          # Increment counter
+    end
+  end
+  return out[ 1:M, : ]
 end
