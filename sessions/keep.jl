@@ -74,8 +74,12 @@ mm = gScan(hh)
 jj = [ .6 2 ; hh ; .5 1 ]
 oo = gScan(jj)
 
-kk = [ jj ; .3 -1 ]
+kk = [ jj ; .3 -1 ; .6 .5 ; .6 0 ; .8 1 ; .6 .8 ; .7 1.2 ]
 pp = gScan(kk)
 
-ll = randn( 1000, 2 )
+ll = randn( 100, 2 )
 @time qq = gScan( ll )
+
+
+# ll = randn( 100, 2 )
+# @time qq = gScan( ll )

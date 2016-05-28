@@ -117,7 +117,7 @@ function add( poly1::polygon, poly2::polygon, dirs, outer=true )
 end
 
 """
-    sum( poly1::Array{polygon,1}, poly2::Array{polygon,1}, dirs, outer=true )
+    add( poly1::Array{polygon,1}, poly2::Array{polygon,1}, dirs, outer=true )
 Adds an array of polygons
 """
 function add( polys::Array{polygon,1}, dirs, outer=true )
@@ -184,7 +184,6 @@ end
 """
     gScan( pts::Matrix )
 Computes a convex hull using the Graham Scan algortithm
-NEEDS DEBUGGING STILL
 """
 
 function gScan( pts::Matrix )
@@ -220,6 +219,8 @@ function gScan( pts::Matrix )
   end
   orderpts[2:N,:] = otherpts[ sortperm(ang, rev=true), : ]
       # Order the points by the angle measure
+
+println("orderpts\n", orderpts )
 
   ## Create the output ##
   out = pts
