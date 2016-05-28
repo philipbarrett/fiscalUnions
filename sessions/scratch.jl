@@ -23,7 +23,8 @@ end
 dd=testFun()
 typeof(dd)
 
-scatter(ll[:,1], ll[:,2])
+plot( layer( x=ll[:,1], y=ll[:,2], Geom.point),
+      layer( x=qq[:,1], y=qq[:,2], Geom.line ) )
 plot!( qq[:,1], qq[:,2], lw=2, col='r')
 polyPlot(qq)
 

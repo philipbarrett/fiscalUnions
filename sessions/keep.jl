@@ -74,11 +74,19 @@ mm = gScan(hh)
 jj = [ .6 2 ; hh ; .5 1 ]
 oo = gScan(jj)
 
-kk = [ jj ; .3 -1 ; .6 .5 ; .6 0 ; .8 1 ; .6 .8 ; .7 1.2 ]
+kk = [ 0 1; .5 .5 ; .3 .6 ; 0 0 ; .6 2 ;
+      .3 -1 ; .6 0 ; .8 1 ; .7 1.2 ]
 pp = gScan(kk)
+plot( layer( x=kk[:,1], y=kk[:,2], Geom.point),
+      layer( x=pp[:,1], y=pp[:,2], Geom.path,
+          Theme(default_color=colorant"red") ) )
+
 
 ll = randn( 100, 2 )
 @time qq = gScan( ll )
+plot( layer( x=ll[:,1], y=ll[:,2], Geom.point),
+      layer( x=qq[:,1], y=qq[:,2], Geom.path,
+          Theme(default_color=colorant"red") ) )
 
 
 # ll = randn( 100, 2 )

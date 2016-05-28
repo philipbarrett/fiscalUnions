@@ -5,7 +5,7 @@ Philip Barrett, pobarrett@gmail.com
 Provides plotting functionality for the polygon class
 =#
 
-using Plots
+using Gadfly
 
 function polyPlot( pts::Matrix )
   P = [ pts ; pts[1,:] ]
