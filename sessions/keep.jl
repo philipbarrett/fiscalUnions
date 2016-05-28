@@ -3,7 +3,9 @@
 # Include function definitions
 include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
-
+include("../julia/polygon.jl")
+include("../julia/polygonUtils.jl")
+include("../julia/polygonPlot.jl")
 
 ### 1. Solving the model ###
 am = AutarkyModel()
@@ -53,6 +55,7 @@ f = add( s, s, dirs, false )
 g = add( s, s, dirs2 )
 h = add( s, s, dirs2, false )
 # e = add( s, s, dirs )
+plot( [ s, add( s, [1,1] ) ] )
 
 add( t, s, dirs2 )
 apoly = [ t, ee, r, q ]

@@ -1,4 +1,4 @@
-#= ploygonPlot.jl
+#= polygonPlot.jl
 Philip Barrett, pobarrett@gmail.com
 27may2016, Chicago
 
@@ -6,9 +6,23 @@ Provides plotting functionality for the polygon class
 =#
 
 using Gadfly
+using Colors
+import Gadfly: plot
 
-function polyPlot( pts::Matrix )
+function plot( pts::Matrix )
   P = [ pts ; pts[1,:] ]
       # Wrap the matrix of points
-  plot( P[:,1], P[:,2], lw=2 )
+  plot( x=P[:,1], y=P[:,2], Geom.path )
+end
+
+function plot( poly::polygon )
+  polyPlot( poly.pts )
+end
+
+function plot( polys::Array{polygon,1} )
+  plot( [ layer( x=[ polys[i].pts[:,1] ; polys[i].pts[1,1] ],
+                 y=[ polys[i].pts[:,2] ; polys[i].pts[1,2] ],
+             Geom.path,
+             Theme(default_color=distinguishable_colors(length(polys))[i]))
+             for i in 1:length(polys), line_width=4]...)
 end
