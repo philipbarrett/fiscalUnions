@@ -3,8 +3,7 @@ Philip Barrett, pobarrett@gmail.com
 24may2016, Chicago
 
 Computes the government's optimal expenditure problem in response to uncertain
-tax income.  Based on Spencer Lyon's ifp.jl file on quantecon =#
-using Plots
+tax income.  Based on Spencer Lyon's ifp.jl file on quantecon =
 using Interpolations
 using Optim
 
@@ -58,7 +57,7 @@ of the constructor
 """
 function defaultTaxes()
 
-  T = [ .02, .04, .06, .08 ]
+  T = [ .04, .06, .08, .1 ]
   P = [ .6 .2 .1 .1
         .2 .4 .3 .1
         .1 .3 .4 .2

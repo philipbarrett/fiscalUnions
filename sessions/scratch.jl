@@ -22,3 +22,12 @@ end
 
 dd=testFun()
 typeof(dd)
+
+scatter(ll[:,1], ll[:,2])
+plot!( qq[:,1], qq[:,2], lw=2, col='r')
+polyPlot(qq)
+
+scatter(kk[:,1], kk[:,2])
+plot!( pp[:,1], pp[:,2], lw=2, col='r')
+oo = gScan(pp)
+plot!( oo[:,1], oo[:,2], lw=2, col='g')
