@@ -5,7 +5,7 @@ Philip Barrett, pobarrett@gmail.com
 Defines utilities for polygon objects
 =#
 
-# TODO: Hausdorff distance, duplicate removals
+# TODO: Hausdorff distance
 
 """
     acw( p1, p2, p3 )

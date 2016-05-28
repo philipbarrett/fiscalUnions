@@ -170,3 +170,73 @@ function wtdSum( polys::Array{polygon,1}, wts::Vector, dirs, outer=true )
   end
   return( add( polys2, dirs, outer ) )
 end
+
+"""
+    crop( poly::polygon, dim::Int, dist, upper=true )
+Returns a polygon cropped in either the x or y dimension, with upper = true
+retaining the part of the polygon above the chop, and =false the part below
+"""
+function crop( poly::polygon, dim::Int, dist, upper=true )
+
+  N = size(poly.pts)[1]
+
+  # Compute the direction of the chop
+  if( dim == 1 && upper )
+    dir = [ -1, 0 ]
+  elseif( dim == 1 && !upper )
+    dir = [ 1, 0 ]
+  elseif( dim==2 && upper )
+    dir = [ 0, -1 ]
+  else
+    dir = [ 0, 1 ]
+  end
+  c = dir[1]
+  s = dir[2]
+      # Sign and cosine of the dir vector
+
+  # Check that the chop binds
+  l = minimum( poly.pts[:,dim] )
+  u = minimum( poly.pts[:,dim] )
+  if( dist < l || dist > u )
+    return(poly)
+  end
+
+  # Now loop over the direction vectors
+  i = 1
+      # Counter
+  c1 = poly.dirs[1,1] / norm( poly.dirs[1,:] )
+  s1 = poly.dirs[1,2] / norm( poly.dirs[1,:] )
+      # Initiate the next point's sign and cos
+  while( i<(N-1) )
+    c0 = c1
+    s0 = c1
+        # Old is now new. How sad, how true.
+    c1 = poly.dirs[i+1,1] / norm( poly.dirs[i+1,:] )
+    s1 = poly.dirs[i+1,2] / norm( poly.dirs[i+1,:] )
+        # Cosine and sine of the next direction vector
+    if( min( s1, s0 ) > 0  )
+      if( c0 > c > c1 )
+        break
+      end
+    elseif( max( s1, s0 ) < 0 )
+      if( c0 < c < c1 )
+        break
+      end
+    elseif( s0 > 0 > s1 )
+      if( c < min( c0, c1 ) )
+        break
+      end
+    else
+      if( c > max( c0, c1 ))
+        break
+      end
+    end
+    i += 1
+  end
+      # So dir fits in between the ith and (i+1)th direction vectors
+  newdirs = [ poly.dirs[1:i] ; dir ; poly.dirs[ (i+1):end ] ]
+  newdists = [ poly.dists[1:i] ; dist ; poly.dists[ (i+1):end ] ]
+      # Create the new directions and distances
+  return( polygon( dirs = newdirs, dists = newdists ) )
+
+end
