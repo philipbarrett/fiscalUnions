@@ -18,10 +18,8 @@ type polygon
 end
 
 """
-    polygonP( ; pts=Matrix{Float64}([]) )
-    polygonD( ; dirs=Matrix{Float64}([]), dists=Vector{Float64}([]) )
-    polygonE()
-Constructors for poylgon.  Maitained assumptions are that dirs is ordered
+    polygon( ; pts=[ NaN NaN ], dirs=[ NaN NaN ], dists=[NaN]  )
+Constructor for poylgon.  Maitained assumptions are that dirs is ordered
 clockwise and that pts is already a convex hull.
 """
 function polygon( ; pts=[ NaN NaN ], dirs=[ NaN NaN ], dists=[NaN]  )
