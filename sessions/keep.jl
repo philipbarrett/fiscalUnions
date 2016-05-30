@@ -28,11 +28,11 @@ mean( asim, 1 )
 mean( prs_sim, 1 ) / 2
 
 ### 2. Polygon stuff ###
-dirs  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 0 ; 0 -1 ] )
+dirs  = Matrix{Float64}( [ -1 0 ; 0 -1 ; 1 0 ; 0 1 ] )
 dists = Vector{Float64}( [ 1, 1, 1, 1 ] )
 z = dirsToPts( dirs, dists )
 
-dirs  = Matrix{Float64}( [ -1 0 ; 0 1 ; 1 1 ; 1 0 ; 0 -1 ] )
+dirs  = Matrix{Float64}( [ -1 0 ; 0 -1 ; 1 0 ; 1 1 ; 0 1 ] )
 dists = Vector{Float64}( [ 1, 1, 1, 1, 1 ] )
 z = dirsToPts( dirs, dists )
 
