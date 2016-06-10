@@ -12,7 +12,7 @@ file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
 cts <- c("Germany", "France")
 gov <- 'NES'  # Total tax revenue
 y.min <- 1980 # 1960
-nn <- 10000   # Simulation periods
+nn <- 1000   # Simulation periods
 n.Z <- 10     # Number of discretized periods
 
 ## 1. Read the data
@@ -36,7 +36,8 @@ var.tax <- VAR( subset(tax, Year > y.min)[,cts] )
 
 ## 3. The demeaned version ##
 tax.dm <- tax
-tax.dm[,cts] <- tax[,cts] - rep( apply( subset(tax, Year > y.min)[,cts], 2, mean ), each=nrow(tax) )
+tax.means <- rep( apply( subset(tax, Year > y.min)[,cts], 2, mean ), each=nrow(tax) )
+tax.dm[,cts] <- tax[,cts] - tax.means
 var.tax.dm <- VAR( subset(tax.dm, Year > y.min)[,cts],type='none'  )
     # Need to remove the constant because regress on *lagged* sample so mean of
     # regressors not quite zero
@@ -51,10 +52,12 @@ eps <- rmvnorm( nn, sigma=sig )
     # Random variables for integration
 X.prime.e <- X %*% t(phi)
     # Expected value of X prime
-Z <- kmeans( X, n.Z )
-    # Initial the Z points
-
-
+Z <- kmeans( X, n.Z )$centers
+    # The Z points
+T.p <- trans_prob( phi, X, eps, Z )
+    # The transition probabilities
+T.vals <- Z + tax.means
+    # Re-mean
 
 # X prime itself needs to be an array of depth number of countries
 

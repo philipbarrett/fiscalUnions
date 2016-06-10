@@ -5,7 +5,7 @@ using namespace arma;
 // [[Rcpp::depends(RcppArmadillo)]]
 
 // [[Rcpp::export]]
-arma::mat lyapunovEq( arma::mat& phi, arma::mat& sigma, 
+arma::mat lyapunovEq( arma::mat phi, arma::mat sigma, 
                       int maxit = 1000, double tol = 1e-08, bool printit = false ) {
 // Solves the Lyapunov matrix equation lambda = phi * lambda * phi.t + sigma
 // via the iteration lambda = sum_{k=0}^inf phi^k * lambda * phi.t^k
@@ -37,7 +37,7 @@ arma::mat lyapunovEq( arma::mat& phi, arma::mat& sigma,
 }
 
 // [[Rcpp::export]]
-int find_nearest( arma::rowvec& X, arma::mat& Z, int nZ ){
+int find_nearest( arma::rowvec X, arma::mat Z, int nZ ){
 // Find the nearest point to X in Z according to the Eucildian norm
   mat diffs = ones( nZ ) * X - Z ;
       // The matrix of differences
@@ -50,7 +50,7 @@ int find_nearest( arma::rowvec& X, arma::mat& Z, int nZ ){
 }
 
 // [[Rcpp::export]]
-arma::rowvec p_hat( arma::rowvec& eX, arma::mat& eps, arma::mat& Z ){
+arma::rowvec p_hat( arma::rowvec eX, arma::mat eps, arma::mat Z ){
 // Computes the vector of probabilities that X' is nearest to the corresponding
 // element of Z
 
@@ -71,15 +71,43 @@ arma::rowvec p_hat( arma::rowvec& eX, arma::mat& eps, arma::mat& Z ){
         // Location of closest point to X'
     p[idx] += inc_eps ;
         // Increment the probability vector
-//        Rcout << "i = " << i << std::endl ;
-//        Rcout << "idx = " << idx << std::endl ;
-//        Rcout << "p: \n" << p << std::endl << std::endl ;
   }
   return p ;
 }
 
 // [[Rcpp::export]]
-arma::mat p_trans( arma::mat& eX, arma::mat& eps, arma::mat& Z ){
-// Computes by Monte Carlo integration the 
+arma::mat trans_prob( arma::mat phi, arma::mat X, arma::mat eps, arma::mat Z ){
+// Computes the transition matrix for X using Monte Carlo simulation
   
+  int nX = X.n_rows ;
+  int nZ = Z.n_rows ;
+      // The number of X and Z points
+  mat phiT = trans(phi) ;
+  mat e_X_prime = X * phiT ;
+      // The matrix of conditional expectations
+  uvec X_idx(nX) ;
+      // The matrix of indices of X
+  mat P = zeros( nZ, nZ ) ;
+      // Initize the output matrix
+      
+  for( int i = 0 ; i < nX ; i++ ){
+    rowvec this_X = X.row(i) ;
+    X_idx[i] = find_nearest( this_X, Z, nZ ) ;
+        // Fill in the indices of the X values
+  }
+  
+  vec countZ = zeros(nZ) ;
+      // Initialize the vector of counts of the Z in X
+  for( int i = 0 ; i < nZ ; i++ ){
+    uvec thisZ = find( X_idx == i ) ;
+    countZ[i] = thisZ.n_elem ;
+        // The number of matching elements
+  }
+  
+  for( int i = 0 ; i < nX ; i++ ){
+    rowvec this_X_prime = e_X_prime.row(i) ;
+    P.row( X_idx[i] ) += p_hat( this_X_prime, eps, Z ) / countZ[X_idx[i]] ;
+  }
+  
+  return P ;
 }
