@@ -5,12 +5,15 @@ library(mvtnorm)
 # library(dplyr)
 # library(lubridate)
 
+# Rcpp::sourceCpp('code/2016/fiscalUnions/R/rcpp/dists.cpp')
+
 ## 0. Script variables
 file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
 cts <- c("Germany", "France")
-gov <- 'NES' # Total tax revenue
+gov <- 'NES'  # Total tax revenue
 y.min <- 1980 # 1960
-nn <- 10000 # Simulation periods
+nn <- 10000   # Simulation periods
+n.Z <- 10     # Number of discretized periods
 
 ## 1. Read the data
 df <- read_csv( file )
@@ -48,5 +51,10 @@ eps <- rmvnorm( nn, sigma=sig )
     # Random variables for integration
 X.prime.e <- X %*% t(phi)
     # Expected value of X prime
+Z <- kmeans( X, n.Z )
+    # Initial the Z points
+
+
+
 # X prime itself needs to be an array of depth number of countries
 
