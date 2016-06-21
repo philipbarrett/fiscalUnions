@@ -14,9 +14,9 @@ file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
 cts <- c("Germany", "France")
 gov <- 'NES'      # Total tax revenue
 y.min <- 1980     # 1960
-nn <- 1000        # Simulation periods
-n.Z <- 20         # Number of discretized periods
-n.sim <- 1e8   # Simulation length for cross-check
+nn <- 2000        # Simulation periods
+n.Z <- 10         # Number of discretized periods
+n.sim <- 2e6   # Simulation length for cross-check
 
 ## 1. Read the data
 df <- read_csv( file )
