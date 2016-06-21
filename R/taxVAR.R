@@ -1,6 +1,7 @@
 library(readr)
 library(vars)
 library(mvtnorm)
+library(markovchain)
 # library(tidyr)
 # library(dplyr)
 # library(lubridate)
@@ -36,8 +37,8 @@ var.tax <- VAR( subset(tax, Year > y.min)[,cts] )
 
 ## 3. The demeaned version ##
 tax.dm <- tax
-tax.means <- rep( apply( subset(tax, Year > y.min)[,cts], 2, mean ), each=nrow(tax) )
-tax.dm[,cts] <- tax[,cts] - tax.means
+tax.means <- apply( subset(tax, Year > y.min)[,cts], 2, mean )
+tax.dm[,cts] <- tax[,cts] - rep( tax.means, each=nrow(tax) )
 var.tax.dm <- VAR( subset(tax.dm, Year > y.min)[,cts],type='none'  )
     # Need to remove the constant because regress on *lagged* sample so mean of
     # regressors not quite zero
@@ -56,7 +57,7 @@ Z <- kmeans( X, n.Z )$centers
     # The Z points
 T.p <- trans_prob( phi, X, eps, Z )
     # The transition probabilities
-T.vals <- Z + tax.means
+T.vals <- Z + rep( tax.means, each=n.Z )
     # Re-mean
 
 # X prime itself needs to be an array of depth number of countries
