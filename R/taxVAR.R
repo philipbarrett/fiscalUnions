@@ -1,3 +1,11 @@
+#############################################################################
+# taxVAR.R
+#
+# Script to calibrate the fiscal unions model
+# Philip Barrett, Chicago
+# Created: 10jun2016
+#############################################################################
+
 library(readr)
 library(vars)
 library(mvtnorm)
@@ -8,6 +16,7 @@ library(expm)
 # library(lubridate)
 
 Rcpp::sourceCpp('code/2016/fiscalUnions/R/rcpp/dists.cpp')
+source('code/2016/fiscalUnions/R/AR1disc.R')
 
 ## 0. Script variables
 file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
@@ -16,9 +25,12 @@ gov <- 'NES'      # Total tax revenue
 y.min <- 1980     # 1960
 nn <- 2000        # Simulation periods
 n.Z <- 10         # Number of discretized periods
-n.sim <- 2e6   # Simulation length for cross-check
+n.ar1 <- 6        # Number of AR(1) points
+n.sim <- 2e6      # Simulation length for cross-check
+save.file <- '~/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata'
 
 ## 1. Read the data
+names(cts) <- cts
 df <- read_csv( file )
 df <- subset( df, GOV==gov & Country %in% cts & Tax == 'Total tax revenue' )
 df <- df[, c('Government', 'Tax', 'Variable', 'Country', 'Year', 'Unit', 'Value')]
@@ -96,8 +108,22 @@ for( cty in cts ){
 }
 par(mfrow = c(1, 1))
 
+## 6. Individual countries ##
+l.ar1 <- lapply( cts, function(cty) ar(subset(tax, Year > y.min)[[cty]], 
+                                       order.max=1 ) )
+    # The list of AR(1) autoregressions
+l.indiv <- lapply( cts, function(cty) ar1.disc( n.ar1, l.ar1[[cty]]$ar, 
+                            sqrt(l.ar1$Germany$var.pred ), ext=FALSE) )
+    # The individual countries' discretized processes
+
+## 7. Save the results ##
+T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
+    # For some reason, reading T.vals directly in julia gives an error
+for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
+    # Fill the values by hand
+df.T.vals <- as.data.frame(T.vals.temp)
+df.T.p <- as.data.frame(T.p)
+save( l.indiv, T.vals.temp, T.p, file = save.file )
+
 ### Q: Can I use markovchainFit on the nearest-neighbour version of a simulation
 ### from the VAR to generate an answer?
-
-
-
