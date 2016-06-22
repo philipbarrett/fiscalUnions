@@ -4,9 +4,7 @@ Philip Barrett, pobarrett@gmail.com
 
 Computes the government's optimal expenditure problem in response to uncertain
 tax income.  Based on Spencer Lyon's ifp.jl file on quantecon =#
-using Plots
-using Interpolations
-using Optim
+using Plots, Interpolations, Optim
 
 # utility and marginal utility functions
 u(x) = log(x)

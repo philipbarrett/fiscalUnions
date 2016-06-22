@@ -5,7 +5,7 @@
 # Philip Barrett, Chicago
 # Created: 10jun2016
 #############################################################################
-
+rm(list=ls())
 library(readr)
 library(vars)
 library(mvtnorm)
@@ -87,7 +87,7 @@ heatmap(T.p, Colv ="Rowv" )
 ## 5. Simulate the discretized process and compare to the VAR ##
 mc.tax <- new( "markovchain", byrow=TRUE, transitionMatrix=T.p, name="Tax" )
     # The markov chain object
-sim.tax <- T.vals[as.numeric(rmarkovchain( n.sim, mc.tax ) ), ]
+sim.tax <- T.vals[as.numeric(rmarkovchain( n.sim, mc.tax, useRCpp=TRUE ) ), ]
 rownames(sim.tax) <- NULL
 colnames(sim.tax) <- cts
     # Simulated taxes
@@ -121,9 +121,7 @@ T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-df.T.vals <- as.data.frame(T.vals.temp)
-df.T.p <- as.data.frame(T.p)
-save( l.indiv, T.vals.temp, T.p, file = save.file )
+save( l.indiv, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
 
 ### Q: Can I use markovchainFit on the nearest-neighbour version of a simulation
 ### from the VAR to generate an answer?
