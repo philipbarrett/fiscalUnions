@@ -19,48 +19,138 @@ Rcpp::sourceCpp('code/2016/fiscalUnions/R/rcpp/dists.cpp')
 source('code/2016/fiscalUnions/R/AR1disc.R')
 
 ## 0. Script variables
-file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
+tax.file <- '~/Dropbox/data/2016/fiscalUnions/govtNomTaxANA.csv'
+    # This data source (OECD ANAs) gives consistent measures of government
+    # revenue, expenditure, and deficits.  The only downside is that it has no
+    # German data before 1995.  For this, I need to stitch on the canned
+    # revenue/GDP from the OECD taxation database
+gdp.file <- '~/Dropbox/data/2016/fiscalUnions/gdpDefANA.csv'
+    # From OECD annual GDP data
+check.file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
+    # From the OECD taxation databse
 cts <- c("Germany", "France")
-gov <- 'NES'      # Total tax revenue
+tax.code <- c( 'GTR', 'GS13')         # Total revenue, general government
+nom.gdp.code <- c( 'B1_GA', 'C' )     # GDP, current prices
+gdp.def.code <- c( 'B1_GA', 'DOB' )   # GDP, deflator (could use expenditure deflator here)
+tax.gdp.code <- 'NES'                 # Total tax revenue
 y.min <- 1980     # 1960
 nn <- 2000        # Simulation periods
-n.Z <- 10         # Number of discretized periods
-n.ar1 <- 6        # Number of AR(1) points
+n.Z <- 20         # Number of discretized periods
+n.ar1 <- 10        # Number of AR(1) points
 n.sim <- 2e6      # Simulation length for cross-check
 save.file <- '~/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata'
 
 ## 1. Read the data
 names(cts) <- cts
-df <- read_csv( file )
-df <- subset( df, GOV==gov & Country %in% cts & Tax == 'Total tax revenue' )
-df <- df[, c('Government', 'Tax', 'Variable', 'Country', 'Year', 'Unit', 'Value')]
-df[ df$Value > 100, ]$Value <- df[ df$Value > 100, ]$Value / 1000
-    # Clean the data (some values mis-recorded)
-df$Year <- as.numeric(df$Year)
-df$Value <- as.numeric(df$Value)
-tax <- reshape( df, timevar='Country', idvar=c('Year', 'Government', 'Tax', 'Variable', 'Unit'), 
-                  direction='wide' )
-    # The taxes dataframe
+
+### 1.1 Nominal taxes ###
+df.tax <- read_csv( tax.file )
+df.tax <- subset( df.tax, TRANSACT==tax.code[1] & SECTOR==tax.code[2] &
+                    Country %in% cts & Year >= y.min )
+df.tax <- df.tax[, c('Country', 'Transaction', 'Sector', 'Measure', 'Year', 'Unit', 'PowerCode', 'Value')]
+df.tax$Year <- as.numeric(df.tax$Year)
+df.tax$Value <- as.numeric(df.tax$Value)
+    # Drop needless columns
+tax <- reshape( df.tax, timevar='Country', idvar=names(df.tax)[2:(ncol(df.tax)-1)], direction='wide' )
+    # The nominal tax dataframe
+rownames(tax) <- NULL
 names(tax)[ ncol(tax)-0:1] <- sapply( names(tax)[ ncol(tax)-0:1], function(x) substr(x,7,nchar(x)) )
     # Adjust the names
 
-## 2. A quick plot ##
-plot( tax$Year[ tax$Year >= y.min ], tax[tax$Year >= y.min ,cts[1]], type='l', ylim = c(30,45), col='blue', lwd=2, 
-      xlim=c(y.min,max(tax$Year)), xlab='Year', ylab='Tax/GDP' )
-lines( tax$Year[tax$Year >= y.min ], tax[tax$Year >= y.min ,cts[2]], type='l', col='red', lwd=2 )
-legend( 'bottomright', cts, lwd=2, col=c('blue','red'), bty='n' )
-var.tax <- VAR( subset(tax, Year > y.min)[,cts] )
+### 1.2 Nominal GDP ###
+df.nom.gdp <- read_csv( gdp.file )
+df.nom.gdp <- subset( df.nom.gdp, TRANSACT==nom.gdp.code[1] & MEASURE==nom.gdp.code[2] &
+                      Country %in% cts & Year >= y.min )
+df.nom.gdp <- df.nom.gdp[, c('Country', 'Transaction', 'Measure', 'Year', 'Unit', 'PowerCode', 'Value')]
+df.nom.gdp$Year <- as.numeric(df.nom.gdp$Year)
+df.nom.gdp$Value <- as.numeric(df.nom.gdp$Value)
+    # Drop needless columns
+nom.gdp <- reshape( df.nom.gdp, timevar='Country', 
+                    idvar=names(df.nom.gdp)[2:(ncol(df.nom.gdp)-1)], direction='wide' )
+    # The nominal tax dataframe
+rownames(nom.gdp) <- NULL
+names(nom.gdp)[ ncol(nom.gdp)-0:1] <- sapply( names(nom.gdp)[ ncol(nom.gdp)-0:1], function(x) substr(x,7,nchar(x)) )
+    # Adjust the names
 
-## 3. The demeaned version ##
-tax.dm <- tax
-tax.means <- apply( subset(tax, Year > y.min)[,cts], 2, mean )
-tax.dm[,cts] <- tax[,cts] - rep( tax.means, each=nrow(tax) )
-var.tax.dm <- VAR( subset(tax.dm, Year > y.min)[,cts],type='none'  )
-    # Need to remove the constant because regress on *lagged* sample so mean of
-    # regressors not quite zero
-phi <- t(sapply( 1:length(cts), function(i) var.tax.dm$varresult[[cts[i]]]$coefficients ))
+### 1.3 GDP deflator ###
+df.gdp.def <- read_csv( gdp.file )
+df.gdp.def <- subset( df.gdp.def, TRANSACT==gdp.def.code[1] & MEASURE==gdp.def.code[2] &
+                        Country %in% cts & Year >= y.min )
+df.gdp.def <- df.gdp.def[, c('Country', 'Transaction', 'Measure', 'Year', 'Unit', 'PowerCode', 'Value')]
+df.gdp.def$Year <- as.numeric(df.gdp.def$Year)
+df.gdp.def$Value <- as.numeric(df.gdp.def$Value)
+    # Drop needless columns
+gdp.def <- reshape( df.gdp.def, timevar='Country', 
+                    idvar=names(df.nom.gdp)[2:(ncol(df.nom.gdp)-1)], direction='wide' )
+    # The nominal tax dataframe
+rownames(gdp.def) <- NULL
+names(gdp.def)[ ncol(gdp.def)-0:1] <- sapply( names(gdp.def)[ ncol(gdp.def)-0:1], function(x) substr(x,7,nchar(x)) )
+    # Adjust the names
+
+### 1.4 Tax/GDP ratios ###
+df.tax.gdp <- read_csv( check.file )
+df.tax.gdp <- subset( df.tax.gdp, GOV==tax.gdp.code & Country %in% cts & 
+                        Tax == 'Total tax revenue' & Year >= y.min )
+df.tax.gdp <- df.tax.gdp[, c('Government', 'Tax', 'Variable', 'Country', 'Year', 'Unit', 'Value')]
+df.tax.gdp[ df.tax.gdp$Value > 100, ]$Value <- df.tax.gdp[ df.tax.gdp$Value > 100, ]$Value / 1000
+    # Clean the data (some values mis-recorded)
+df.tax.gdp$Year <- as.numeric(df.tax.gdp$Year)
+df.tax.gdp$Value <- as.numeric(df.tax.gdp$Value)
+tax.gdp <- reshape( df.tax.gdp, timevar='Country', 
+                    idvar=c('Year', 'Government', 'Tax', 'Variable', 'Unit'), 
+                    direction='wide' )
+    # The taxes dataframe
+names(tax.gdp)[ ncol(tax.gdp)-0:1] <- sapply( names(tax.gdp)[ ncol(tax.gdp)-0:1], function(x) substr(x,7,nchar(x)) )
+    # Adjust the names
+
+## 2. Compare the canned and home-made tax/GDP ratios (as a check) ##
+tax.gdp.hand <- data.frame( Year = tax$Year, tax[,cts] / nom.gdp[,cts] * 100 )
+    # Create by hand
+plot( tax.gdp$Year, tax.gdp[, cts[1]] / tax.gdp.hand[ 1:nrow(tax.gdp),cts[1]], type='l', col='blue', lwd=2, 
+      xlab='Year', ylab='Ratio of measures', ylim=c(.75,.9) )
+lines( tax.gdp$Year, tax.gdp[, cts[2]] / tax.gdp.hand[ 1:nrow(tax.gdp),cts[2]], col='red', lwd=2 )
+
+### 2.1 If Germany in cts, stitch on the OECD tax database data
+if( 'Germany' %in% cts ){
+  scale.factor <- mean( tax.gdp.hand$Germany[1:nrow(tax.gdp)] / tax.gdp$Germany, 
+                        na.rm = TRUE ) / 100
+  replace <- is.na( tax$Germany )
+      # The rows to replace
+  tax$Germany[replace] <- scale.factor * tax.gdp$Germany[replace] * nom.gdp$Germany[replace]
+}
+
+## 2.2 replot ##
+plot( tax.gdp$Year, tax.gdp[, cts[1]], type='l', ylim = c(30,55), col='blue', lwd=2, 
+      xlab='Year', ylab='Tax/GDP' )
+lines( tax.gdp$Year, tax.gdp[ ,cts[2]], type='l', col='red', lwd=2 )
+for(i in 1:2){
+  lines( tax$Year, tax[ ,cts[i]] / nom.gdp[ ,cts[i]] * 100, 
+         type='l', col=c('blue','red')[i], lwd=2, lty=2 )
+}
+legend( 'topleft', paste( rep( cts, 2), rep( c( 'OECD', 'Constructed'), each=2 ) ), 
+        lwd=2, col=c('blue','red'), lty=c(1,1,2,2), bty='n' )
+    # The two series
+
+## 3. Create the real tax series and measure the trend growth rates ##
+real.tax <- data.frame( Year=tax$Year, tax[,cts] / ( gdp.def[,cts] / 100 ) )
+    # In 2014 Euros
+lm.tax.ratio <- lm( log( Germany / France ) ~ Year, data=real.tax )
+l.lm.tax.cts <- lapply( cts, function(cty) lm( paste( 'log(', cty, ' ) ~ Year' ), 
+                                                      data=real.tax ) )
+    # Mesauring the relative growth rates of the two real tax series
+gam <- exp( mean( sapply( l.lm.tax.cts, function(x) x$coefficients['Year'] ) ) ) - 1
+    # The mean annual growth rate of taxes.  Require the exp and subtraction to
+    # convert from log levels to annual growth rates (v. small diff though).
+tax.dt <- data.frame( Year=tax$Year, log( real.tax[,cts] ) -
+                      sapply( cts, function(cty) predict( l.lm.tax.cts[[cty]] ) ) )
+    # Real detrended taxes
+
+## 4. The demeaned version ##
+var.tax <- VAR( tax.dt[,cts], type='none' )
+    # The VAR (gives non-zero constants because one period is dropped when lagging)
+phi <- t(sapply( 1:length(cts), function(i) var.tax$varresult[[cts[i]]]$coefficients ))
     # The matrix of auto-regressive coefficients
-sig <- summary(var.tax.dm)$covres
+sig <- summary(var.tax)$covres
     # The Covariance of the residuals
 lam <- lyapunovEq( phi, sig )
     # The covariance of the stationary distribution
@@ -73,13 +163,11 @@ Z <- kmeans( X, n.Z )$centers
     # The Z points
 T.p <- trans_prob( phi, X, eps, Z )
     # The transition probabilities
-
-## 4. Return to the version with means ##
-T.vals <- Z + rep( tax.means, each=n.Z )
-    # Re-mean
+T.vals <- exp(Z)
+    # Return to the true growth rate version (not logs)
 ergodic <- (T.p %^% 100)[1,]
     # The ergodic distribution
-plot( T.vals, cex = ergodic * 10, main="Ergodic distribution" )
+plot( T.vals, cex = ergodic * 40, main="Ergodic distribution" )
     # Plot the ergodic distribution
 heatmap(T.p, Colv ="Rowv" )
     # Heatmap of transition probabilities
@@ -87,16 +175,30 @@ heatmap(T.p, Colv ="Rowv" )
 ## 5. Simulate the discretized process and compare to the VAR ##
 mc.tax <- new( "markovchain", byrow=TRUE, transitionMatrix=T.p, name="Tax" )
     # The markov chain object
+set.seed(1234)
 sim.tax <- T.vals[as.numeric(rmarkovchain( n.sim, mc.tax, useRCpp=TRUE ) ), ]
 rownames(sim.tax) <- NULL
 colnames(sim.tax) <- cts
     # Simulated taxes
-plot( 1:40, sim.tax[ 1:40, 1 ], type='l', col='blue', ylim = c(30,45),
-      xlab='Sim pd', ylab='Tax/GDP', lwd=2 )
-lines( 1:40, sim.tax[ 1:40, 2 ], type='l', col='red', lwd=2 )
-legend( 'bottomright', cts, lwd=2, col=c('blue','red'), bty='n' )
-    # Quick plot
-var.mc <- VAR( sim.tax )
+
+### 5.1 Time series plot ###
+n.pds <- max( tax.dt$Year ) - y.min + 1
+par(mfrow = c(1, 2))
+  plot( tax.dt$Year, tax.dt[, cts[1]], type='l', col='blue', lwd=2, main='Data',
+        xlab='Year', ylab='Detrended real taxes' )
+  lines( tax.dt$Year,  tax.dt[, cts[2]], col='red', lwd=2 )
+  abline( h=0, lwd=.5 )
+  legend( 'bottomright', cts, lwd=2, col=c('blue','red'), bty='n' )
+      # Data
+  plot( 1:n.pds, log( sim.tax[ 1:n.pds, 1 ] ), type='l', col='blue', ylim=range( tax.dt[, cts]),
+        xlab='Sim pd', ylab='Detrended real taxes', lwd=2, main='Simulation' )
+  lines( 1:n.pds, log( sim.tax[ 1:n.pds, 2 ] ), type='l', col='red', lwd=2 )
+  abline( h=0, lwd=.5 )
+  legend( 'bottomright', cts, lwd=2, col=c('blue','red'), bty='n' )
+      # Simulation
+par(mfrow = c(1, 1))
+
+var.mc <- VAR( log( sim.tax ), type='none' )
     # Create the VAR on the simulated data
 par(mfrow = c(1, 2))
 for( cty in cts ){
@@ -104,13 +206,12 @@ for( cty in cts ){
                 var.tax$varresult[[cty]]$coefficients ), 
          beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' VAR coefficients'),
          legend.text=c('Markov Chain \nSimulation', 'Data'), 
-         args.legend =list(x='topleft',bty='n'), log='y' )
+         args.legend =list(x=if(cty=='Germany') 'topright' else 'topleft', bty='n') )
 }
 par(mfrow = c(1, 1))
 
 ## 6. Individual countries ##
-l.ar1 <- lapply( cts, function(cty) ar(subset(tax, Year > y.min)[[cty]], 
-                                       order.max=1 ) )
+l.ar1 <- lapply( cts, function(cty) ar(tax.dt[[cty]], order.max=1 ) )
     # The list of AR(1) autoregressions
 l.indiv <- lapply( cts, function(cty) ar1.disc( n.ar1, l.ar1[[cty]]$ar, 
                             sqrt(l.ar1$Germany$var.pred ), ext=FALSE) )
@@ -121,7 +222,7 @@ T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-save( l.indiv, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
+save( l.indiv, gam, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
 
 ### Q: Can I use markovchainFit on the nearest-neighbour version of a simulation
 ### from the VAR to generate an answer?
