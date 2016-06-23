@@ -33,6 +33,8 @@ pop.file <- '~/Dropbox/data/2016/fiscalUnions/population.csv'
     # Population data
 cons.file <- '~/Dropbox/data/2016/fiscalUnions/govtConsExpd.csv'
     # Government consumption expenditure data (required for pre-1995 Germany)
+int.file <- '~/Dropbox/data/2016/fiscalUnions/interestRates.csv'
+    # Interest rates
 cts <- c("Germany", "France")
 tax.code <- c( 'GTR', 'GS13')         # Total revenue, general government
 expd.code <- c( 'GTE', 'GS13')         # Total expenditure, general government
@@ -44,6 +46,7 @@ nn <- 2000        # Simulation periods
 n.Z <- 20         # Number of discretized periods
 n.ar1 <- 10        # Number of AR(1) points
 n.sim <- 2e6      # Simulation length for cross-check
+real.int.inf <- 'CPI'       # Can also use 'gdpdef'
 save.file <- '~/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata'
 
 ## 1. Read the data
@@ -165,6 +168,22 @@ names(gcons)[ ncol(gcons)-0:1] <- sapply( names(gcons)[ ncol(gcons)-0:1], functi
 gcons[,cts] <- gcons[,cts] / 1e6
     # Adjust the names
 
+### 1.8 Real interest rates ###
+df.int <- read_csv( int.file )
+names(df.int)[-1] <- c( 'Interest.France', 'Interest.Germany', 
+                        'CPI.France', 'gdpdef.France',
+                        'CPI.Germany', 'gdpdef.Germany' )
+df.int.a <- aggregate( df.int[,-1], list(format(df.int$DATE, '%Y' )), mean )
+names(df.int.a)[1] <- 'Year'
+    # Annual averages
+real.int <- data.frame( Year=df.int.a$Year, 
+                        sapply(cts, function(cty) 
+                          df.int.a[[paste0('Interest.', cty)]] - 
+                            df.int.a[[paste0( real.int.inf, '.', cty)]] ) )
+for( i in 1:ncol(real.int) ) real.int[,i] <- as.numeric( as.character( real.int[,i] ) )
+real.int <- subset( real.int, Year >= y.min )
+    # Realized real rates 
+
 
 ## 2. Compare the canned and home-made tax/GDP ratios (as a check) ##
 tax.gdp.hand <- data.frame( Year = tax$Year, tax[,cts] / nom.gdp[,cts] * 100 )
@@ -203,6 +222,7 @@ legend( 'topleft', paste( rep( cts, 2), rep( c( 'OECD', 'Constructed'), each=2 )
         lwd=2, col=c('blue','red'), lty=c(1,1,2,2), bty='n' )
     # The two series
 
+
 ## 3. Create the real tax series and measure the trend growth rates ##
 real.tax <- data.frame( Year=tax$Year, tax[,cts] / ( gdp.def[,cts] / 100 ) )
     # In 2014 Euros
@@ -216,6 +236,7 @@ gam <- exp( mean( sapply( l.lm.tax.cts, function(x) x$coefficients['Year'] ) ) )
 tax.dt <- data.frame( Year=tax$Year, log( real.tax[,cts] ) -
                       sapply( cts, function(cty) predict( l.lm.tax.cts[[cty]] ) ) )
     # Real detrended taxes
+
 
 ## 4. The demeaned version ##
 var.tax <- VAR( tax.dt[,cts], type='none' )
@@ -243,6 +264,7 @@ plot( T.vals, cex = ergodic * 40, main="Ergodic distribution" )
     # Plot the ergodic distribution
 heatmap(T.p, Colv ="Rowv" )
     # Heatmap of transition probabilities
+
 
 ## 5. Simulate the discretized process and compare to the VAR ##
 mc.tax <- new( "markovchain", byrow=TRUE, transitionMatrix=T.p, name="Tax" )
@@ -282,6 +304,7 @@ for( cty in cts ){
 }
 par(mfrow = c(1, 1))
 
+
 ## 6. Individual countries ##
 l.ar1 <- lapply( cts, function(cty) ar(tax.dt[[cty]], order.max=1 ) )
     # The list of AR(1) autoregressions
@@ -304,25 +327,35 @@ real.expd.pc <- data.frame( Year=expd$Year, real.expd[,cts] / pop[,cts] * 1e6 )
 real.expd.t <- data.frame( Year=expd$Year, real.expd[,cts] / 
                              exp( sapply( l.lm.tax.cts, predict ) ) )
     # Expenditure relative to trend taxes
-# sd.epxd <- apply( real.expd.t[,-1], 2, sd, na.rm=T )
-sd.epxd <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, sd, na.rm=T )
+# sd.expd <- apply( real.expd.t[,-1], 2, sd, na.rm=T )
+sd.expd.t <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, sd, na.rm=T )
     # The standard deviation of expenditure.  Drop 1995 as it looks wrong.
-with( real.expd.t, plot( Year, France, lwd=2, col='red', typ='l', ylim=c(.9,1.4 ),
+    # Use this for calibrating sigma.  (Relative to trend taxes)
+mu.expd.t <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, mean, na.rm=T )
+    # Mean expenditure.  Use for calibrating beta (equivalent to avg defecit) 
+    # Wait, really?  Doesn't g > T imply that debt is negative in the long run? 
+    # Or that gamma > r, right?
+with( real.expd.t, plot( Year, France, lwd=2, col='red', typ='l', ylim=c(.9,1.2 ),
                          xlab='Year', ylab='Expenditure to tax trend ratio' ) )
 with( real.expd.t, lines( Year, Germany, lwd=2, col='blue', typ='l' ) )
+abline( h=mu.epxd, col=c('red', 'blue'), lty=2)
     # Plot the data to have a quick look at the two variances
 
 ## 8. Interest rates ##
+rr <- mean(as.matrix(real.int[,cts])) / 100
+    # The average real interest rate
+r.diff <- real.int[,cts[1]] - real.int[,cts[2]]
+rr.diff.ave <- c( abs = mean(abs(r.diff)), mean=mean(r.diff), 
+                  median=median(r.diff) )
+    # The average difference in the real interest rate
 
-## 9. Public debt ##
-
+## 9. Debt levels ##
+# Use FRED data to get general government debt levels back as far as possible. 
+# Try to hit these on average (kind of dumb)
 
 ## 10. Save the results ##
 T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-save( l.indiv, gam, nn, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
-
-### Q: Can I use markovchainFit on the nearest-neighbour version of a simulation
-### from the VAR to generate an answer?
+save( l.indiv, sd.expd, mu.expd, gam, nn, rr, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
