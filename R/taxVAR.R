@@ -35,6 +35,8 @@ cons.file <- '~/Dropbox/data/2016/fiscalUnions/govtConsExpd.csv'
     # Government consumption expenditure data (required for pre-1995 Germany)
 int.file <- '~/Dropbox/data/2016/fiscalUnions/interestRates.csv'
     # Interest rates
+debt.file <- '~/Dropbox/data/2016/fiscalUnions/govtDebt.csv'
+    # Debt/GDP ratios
 cts <- c("Germany", "France")
 tax.code <- c( 'GTR', 'GS13')         # Total revenue, general government
 expd.code <- c( 'GTE', 'GS13')         # Total expenditure, general government
@@ -184,6 +186,14 @@ for( i in 1:ncol(real.int) ) real.int[,i] <- as.numeric( as.character( real.int[
 real.int <- subset( real.int, Year >= y.min )
     # Realized real rates 
 
+### 1.9 Debt levels ###
+debt.gdp <- read_csv( debt.file )
+names( debt.gdp ) <- c( 'Year', 'France', 'Germany' )
+debt.gdp[ debt.gdp==0 ] <- NA
+debt.gdp$Year <- format( debt.gdp$Year, '%Y' )
+for( i in 1:ncol(debt.gdp) ) debt.gdp[,i] <- as.numeric(debt.gdp[,i])
+debt.gdp <- subset( debt.gdp, Year >= y.min )
+    # The debt/GDP ratios
 
 ## 2. Compare the canned and home-made tax/GDP ratios (as a check) ##
 tax.gdp.hand <- data.frame( Year = tax$Year, tax[,cts] / nom.gdp[,cts] * 100 )
@@ -350,7 +360,10 @@ rr.diff.ave <- c( abs = mean(abs(r.diff)), mean=mean(r.diff),
     # The average difference in the real interest rate
 
 ## 9. Debt levels ##
-# Use FRED data to get general government debt levels back as far as possible. 
+debt.t <- data.frame( Year=debt.gdp$Year,
+                      ( debt.gdp[,cts] * nom.gdp[,cts] / gdp.def[,cts] ) / 
+                        exp( sapply( l.lm.tax.cts, predict ) ) )
+    # Debt/Tax trend ratio
 # Try to hit these on average (kind of dumb)
 
 ## 10. Save the results ##
