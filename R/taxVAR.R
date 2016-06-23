@@ -11,8 +11,9 @@ library(vars)
 library(mvtnorm)
 library(markovchain)
 library(expm)
+library(reshape)
 # library(tidyr)
-# library(dplyr)
+# library(plyr)
 # library(lubridate)
 
 Rcpp::sourceCpp('code/2016/fiscalUnions/R/rcpp/dists.cpp')
@@ -27,9 +28,14 @@ tax.file <- '~/Dropbox/data/2016/fiscalUnions/govtNomTaxANA.csv'
 gdp.file <- '~/Dropbox/data/2016/fiscalUnions/gdpDefANA.csv'
     # From OECD annual GDP data
 check.file <- '~/Dropbox/data/2016/fiscalUnions/taxRevenue.csv'
-    # From the OECD taxation databse
+    # From the OECD taxation database
+pop.file <- '~/Dropbox/data/2016/fiscalUnions/population.csv'
+    # Population data
+cons.file <- '~/Dropbox/data/2016/fiscalUnions/govtConsExpd.csv'
+    # Government consumption expenditure data (required for pre-1995 Germany)
 cts <- c("Germany", "France")
 tax.code <- c( 'GTR', 'GS13')         # Total revenue, general government
+expd.code <- c( 'GTE', 'GS13')         # Total expenditure, general government
 nom.gdp.code <- c( 'B1_GA', 'C' )     # GDP, current prices
 gdp.def.code <- c( 'B1_GA', 'DOB' )   # GDP, deflator (could use expenditure deflator here)
 tax.gdp.code <- 'NES'                 # Total tax revenue
@@ -103,20 +109,86 @@ tax.gdp <- reshape( df.tax.gdp, timevar='Country',
 names(tax.gdp)[ ncol(tax.gdp)-0:1] <- sapply( names(tax.gdp)[ ncol(tax.gdp)-0:1], function(x) substr(x,7,nchar(x)) )
     # Adjust the names
 
+### 1.5 Population ###
+df.pop <- read_csv( pop.file )
+df.pop <- df.pop[ !is.na(df.pop[['Country Code']]), ]
+df.pop <- df.pop[, -(2:4) ]
+names( df.pop ) <- sapply( names( df.pop ), 
+                                   function(x) strsplit(x, ' ')[[1]][1] )
+df.pop <- subset( df.pop, Country %in% cts )
+    # Clean the data
+pop.melt <- melt(df.pop, id='Country' ) 
+names( pop.melt )[2:3] <- c('Year', 'Population')
+for( i in 2:3 ) pop.melt[,i] <- as.numeric( as.character( pop.melt[,i ] ) )
+    # Melt down the data
+pop <- reshape( subset( pop.melt, Year >= y.min ), timevar='Country', 
+                        idvar='Year', direction='wide' )
+    # Reshape as required
+rownames(pop) <- NULL
+names(pop)[ ncol(pop)-0:1] <- sapply( names(pop)[ ncol(pop)-0:1], function(x) substr(x,12,nchar(x)) )
+    # Adjust the names
+
+### 1.6 Nominal expenditures ###
+df.expd <- read_csv( tax.file )
+df.expd <- subset( df.expd, TRANSACT==expd.code[1] & SECTOR==expd.code[2] &
+                    Country %in% cts & Year >= y.min )
+df.expd <- df.expd[, c('Country', 'Transaction', 'Sector', 'Measure', 'Year', 'Unit', 'PowerCode', 'Value')]
+df.expd$Year <- as.numeric(df.expd$Year)
+df.expd$Value <- as.numeric(df.expd$Value)
+    # Drop needless columns
+expd <- reshape( df.expd, timevar='Country', idvar=names(df.expd)[2:(ncol(df.expd)-1)], direction='wide' )
+    # The nominal expenditure dataframe
+rownames(expd) <- NULL
+names(expd)[ ncol(expd)-0:1] <- sapply( names(expd)[ ncol(expd)-0:1], function(x) substr(x,7,nchar(x)) )
+    # Adjust the names
+
+### 1.7 Govt consumption expenditures ###
+df.gcons <- read.table( cons.file, sep="\t", header = TRUE )
+    # For some reason read_csv gives the wrong data back!!!
+df.gcons <- df.gcons[ -( nrow(df.gcons) - 0:4 ), ]
+df.gcons <- df.gcons[, -c(1,2,4) ]
+names( df.gcons )[1] <- 'Country'
+names( df.gcons )[-1] <- sapply( names( df.gcons )[-1], 
+                           function(x) substr(x,2,5) )
+df.gcons <- subset( df.gcons, Country %in% cts )
+df.gcons[,-1] <- apply(df.gcons[,-1],2,as.numeric)
+    # Clean the data
+df.gcons.melt <- melt(df.gcons, id='Country' ) 
+names( df.gcons.melt )[2:3] <- c('Year', 'GovtCons')
+for( i in 2:3 ) df.gcons.melt[,i] <- as.numeric( as.character( df.gcons.melt[,i ] ) )
+    # Melt down the data
+gcons <- reshape( subset( df.gcons.melt, Year >= y.min & Country %in% cts ), timevar='Country', 
+                idvar='Year', direction='wide' )
+    # Reshape as required
+rownames(gcons) <- NULL
+names(gcons)[ ncol(gcons)-0:1] <- sapply( names(gcons)[ ncol(gcons)-0:1], function(x) substr(x,10,nchar(x)) )
+gcons[,cts] <- gcons[,cts] / 1e6
+    # Adjust the names
+
+
 ## 2. Compare the canned and home-made tax/GDP ratios (as a check) ##
 tax.gdp.hand <- data.frame( Year = tax$Year, tax[,cts] / nom.gdp[,cts] * 100 )
     # Create by hand
 plot( tax.gdp$Year, tax.gdp[, cts[1]] / tax.gdp.hand[ 1:nrow(tax.gdp),cts[1]], type='l', col='blue', lwd=2, 
       xlab='Year', ylab='Ratio of measures', ylim=c(.75,.9) )
 lines( tax.gdp$Year, tax.gdp[, cts[2]] / tax.gdp.hand[ 1:nrow(tax.gdp),cts[2]], col='red', lwd=2 )
+    # Tax plot
+plot( expd$Year, gcons[, cts[1]] / expd[ , cts[1]], type='l', col='blue', lwd=2, 
+      xlab='Year', ylab='Gov exp/cons ratio', ylim=c(0,1) )
+lines( expd$Year, gcons[, cts[2]] / expd[ ,cts[2]], col='red', lwd=2 )
+    # Expenditure/consumption plot. Looks bad for France, but fine for Germany. Why?
 
 ### 2.1 If Germany in cts, stitch on the OECD tax database data
 if( 'Germany' %in% cts ){
-  scale.factor <- mean( tax.gdp.hand$Germany[1:nrow(tax.gdp)] / tax.gdp$Germany, 
+  scale.factor.tax <- mean( tax.gdp.hand$Germany[1:nrow(tax.gdp)] / tax.gdp$Germany, 
                         na.rm = TRUE ) / 100
-  replace <- is.na( tax$Germany )
+  replace.tax <- is.na( tax$Germany )
+  scale.factor.cons <- mean( gcons$Germany / expd$Germany, na.rm = TRUE )
+  replace.tax <- is.na( tax$Germany )
+  replace.cons <- is.na( expd$Germany )
       # The rows to replace
-  tax$Germany[replace] <- scale.factor * tax.gdp$Germany[replace] * nom.gdp$Germany[replace]
+  tax$Germany[replace.tax] <- scale.factor.tax * tax.gdp$Germany[replace.tax] * nom.gdp$Germany[replace.tax]
+  expd$Germany[replace.cons] <- gcons$Germany[replace.cons] / scale.factor.cons
 }
 
 ## 2.2 replot ##
@@ -137,7 +209,7 @@ real.tax <- data.frame( Year=tax$Year, tax[,cts] / ( gdp.def[,cts] / 100 ) )
 lm.tax.ratio <- lm( log( Germany / France ) ~ Year, data=real.tax )
 l.lm.tax.cts <- lapply( cts, function(cty) lm( paste( 'log(', cty, ' ) ~ Year' ), 
                                                       data=real.tax ) )
-    # Mesauring the relative growth rates of the two real tax series
+    # Measuring the relative growth rates of the two real tax series
 gam <- exp( mean( sapply( l.lm.tax.cts, function(x) x$coefficients['Year'] ) ) ) - 1
     # The mean annual growth rate of taxes.  Require the exp and subtraction to
     # convert from log levels to annual growth rates (v. small diff though).
@@ -217,12 +289,40 @@ l.indiv <- lapply( cts, function(cty) ar1.disc( n.ar1, l.ar1[[cty]]$ar,
                             sqrt(l.ar1$Germany$var.pred ), ext=FALSE) )
     # The individual countries' discretized processes
 
-## 7. Save the results ##
+
+## 7. Population growth and per capita real government spending ##
+l.lm.pop.cts <- lapply( cts, function(cty) lm( paste( 'log(', cty, ' ) ~ Year' ), 
+                                               data=pop ) )
+    # Mesauring the average growth rates of the countries' populations
+nn <- exp( mean( sapply( l.lm.pop.cts, function(x) x$coefficients['Year'] ) ) ) - 1
+    # The mean annual growth rate of population  Require the exp and subtraction to
+    # convert from log levels to annual growth rates (v. small diff though).
+real.expd <- data.frame( Year=expd$Year, expd[,cts] / ( gdp.def[,cts] / 100 ) )
+    # Real government expenditure
+real.expd.pc <- data.frame( Year=expd$Year, real.expd[,cts] / pop[,cts] * 1e6 )
+    # Real per capita expenditure.  Useful for a quick plot
+real.expd.t <- data.frame( Year=expd$Year, real.expd[,cts] / 
+                             exp( sapply( l.lm.tax.cts, predict ) ) )
+    # Expenditure relative to trend taxes
+# sd.epxd <- apply( real.expd.t[,-1], 2, sd, na.rm=T )
+sd.epxd <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, sd, na.rm=T )
+    # The standard deviation of expenditure.  Drop 1995 as it looks wrong.
+with( real.expd.t, plot( Year, France, lwd=2, col='red', typ='l', ylim=c(.9,1.4 ),
+                         xlab='Year', ylab='Expenditure to tax trend ratio' ) )
+with( real.expd.t, lines( Year, Germany, lwd=2, col='blue', typ='l' ) )
+    # Plot the data to have a quick look at the two variances
+
+## 8. Interest rates ##
+
+## 9. Public debt ##
+
+
+## 10. Save the results ##
 T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-save( l.indiv, gam, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
+save( l.indiv, gam, nn, T.vals.temp, T.p, n.Z, n.ar1, file = save.file )  # l.indiv
 
 ### Q: Can I use markovchainFit on the nearest-neighbour version of a simulation
 ### from the VAR to generate an answer?
