@@ -45,7 +45,7 @@ gdp.def.code <- c( 'B1_GA', 'DOB' )   # GDP, deflator (could use expenditure def
 tax.gdp.code <- 'NES'                 # Total tax revenue
 y.min <- 1980     # 1960
 nn <- 2000        # Simulation periods
-n.Z <- 20         # Number of discretized periods
+n.Z <- 30         # Number of discretized tax levels
 n.ar1 <- 10        # Number of AR(1) points
 n.sim <- 2e6      # Simulation length for cross-check
 real.int.inf <- 'CPI'       # Can also use 'gdpdef'
