@@ -13,9 +13,13 @@ include("../julia/autarkySim.jl")
 ## 0.2 Libraries ##
 using DataFrames, Polygons
 
+## 0.3 model settings ##
+param_file = "/home/philip/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata"
+    # The location of the parameters
+
 
 ### 1. Read in the calibrated parameters ###
-params_R = read_rda("/home/philip/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata")
+params_R = read_rda(param_file)
     # The raw parameters
 nT = params_R["n.ar1"].data[1]
 nT_jt = params_R["n.Z"].data[1]
