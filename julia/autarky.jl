@@ -6,14 +6,16 @@ Computes the government's optimal expenditure problem in response to uncertain
 tax income.  Based on Spencer Lyon's ifp.jl file on quantecon =#
 using Plots, Interpolations, Optim
 
-# utility and marginal utility functions
-u(x) = log(x)
+# # utility and marginal utility functions
+# u(x) = log(x)
 
 """
 Type defining Autarky solution.  Contains:
   * r: Interest rate
   * betta: Discount factor
   * gam: (Constant) growth rate of the economy
+  * sig: CRRA curvature coefficient
+  * nn: Rate of population growth
   * P: Transition matrix for taxes
   * T: Vector of tax levels
   * bgrid: The linspace grid of values for the debt
@@ -23,6 +25,8 @@ type AutarkyModel
   r::Float64      # Interest rate
   betta::Float64  # Discount factor
   gam::Float64    # Growth rate
+  sig::Float64    # CRRA parameter
+  nn::Float64     # Rate of population growth
 
   # Tax process
   P::Matrix       # Transition matrix
@@ -38,8 +42,8 @@ end
     AutarkyModel( r, betta, gam, T, P, nb, bmin )
 Constructor for the autarky model object
 """
-function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
-                          nb=150, bmin=0)
+function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1, nn=0, T=-1,
+                          P=-1, nb=150, bmin=0)
 
   if( T[1] < 0 || P[1] < 0 )
     T, P = defaultTaxes()
@@ -47,7 +51,7 @@ function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
 
   bgrid = linspace( bmin, minimum(T) / ( r - gam ), nb )
 
-  return AutarkyModel( r, betta, gam, P, T, length(T), bgrid, nb )
+  return AutarkyModel( r, betta, gam, sig, nn, P, T, length(T), bgrid, nb )
 end
 
 """
@@ -156,7 +160,7 @@ None: `vOut`, `bOut` and `gOut` are updated in place.
 function bellman_operator!(am::AutarkyModel, V::Matrix,
                   vOut::Matrix, bOut::Matrix, gOut::Matrix )
     # simplify names, set up arrays
-  r, betta, gam, P, T, nT = am.r, am.betta, am.gam, am.P, am.T, am.nT
+  r, betta, gam, sig, P, T, nT = am.r, am.betta, am.gam, am.sig, am.P, am.T, am.nT
   bgrid, nb = am.bgrid, am.nb
   bmin = minimum(bgrid)
   bmax = maximum(bgrid)
@@ -172,8 +176,11 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
       for j in T_idx
           cont += vf[bprime, j] * P[iT, j]
       end
-      return -( u( thisT + (1+gam)*bprime - (1+r)*thisb ) +
-                  betta * cont )
+      g = thisT + (1+gam)*bprime - (1+r)*thisb
+          # Gov expenditure
+      util = ( sig == 1 ) ? log(g) : g ^ (1-sig) / (1-sig)
+          # Period utility
+      return -( util + betta * ( (1+gam) / (1+nn) ) ^ (1-sig) * cont )
     end
 
     opt_lb = ( (1+r) * thisb - thisT ) / ( 1 + gam )
