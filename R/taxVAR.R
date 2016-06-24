@@ -348,7 +348,7 @@ mu.expd.t <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, mean, na.rm=T )
 with( real.expd.t, plot( Year, France, lwd=2, col='red', typ='l', ylim=c(.9,1.2 ),
                          xlab='Year', ylab='Expenditure to tax trend ratio' ) )
 with( real.expd.t, lines( Year, Germany, lwd=2, col='blue', typ='l' ) )
-abline( h=mu.expd, col=c('red', 'blue'), lty=2)
+abline( h=mu.expd.t, col=c('red', 'blue'), lty=2)
     # Plot the data to have a quick look at the two variances
 
 ## 8. Interest rates ##
@@ -378,5 +378,5 @@ T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-save( l.indiv, mu.debt.t, sd.expd, mu.expd, gam, nn, rr, T.vals.temp, 
+save( l.indiv, mu.debt.t, sd.expd.t, mu.expd.t, gam, nn, rr, T.vals.temp, 
       T.p, n.Z, n.ar1, file = save.file )  # l.indiv

@@ -42,8 +42,8 @@ end
     AutarkyModel( r, betta, gam, T, P, nb, bmin )
 Constructor for the autarky model object
 """
-function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1, nn=0, T=-1,
-                          P=-1, nb=150, bmin=0)
+function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1,
+                        nn=0, T=-1, P=-1, nb=150, bmin=0)
 
   if( T[1] < 0 || P[1] < 0 )
     T, P = defaultTaxes()
@@ -140,7 +140,8 @@ function vbg_init( am::AutarkyModel )
   bprime = am.bgrid * ones( 1, am.nT ) - .05
       # Redcue from max possible to prevent g=0
   g = ones( am.nb, 1 ) * am.T' - ( am.r - am.gam ) * bprime
-  V = 1 / ( 1 - am.betta ) * u( g )
+  pd = ( am.sig == 1 ) ? log(g) : g ^ (1-am.sig) / (1-am.sig)
+  V = 1 / ( 1 - am.betta ) * pd
   return V, bprime, g
 end
 
