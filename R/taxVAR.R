@@ -337,6 +337,9 @@ real.expd.pc <- data.frame( Year=expd$Year, real.expd[,cts] / pop[,cts] * 1e6 )
 real.expd.t <- data.frame( Year=expd$Year, real.expd[,cts] / 
                              exp( sapply( l.lm.tax.cts, predict ) ) )
     # Expenditure relative to trend taxes
+real.gc.t <- data.frame( Year=expd$Year, gcons[,cts] / ( gdp.def[,cts] / 100 ) / 
+                           exp( sapply( l.lm.tax.cts, predict ) )  )
+    # 
 # sd.expd <- apply( real.expd.t[,-1], 2, sd, na.rm=T )
 sd.expd.t <- apply( subset(real.expd.t, Year != 1995 )[,-1], 2, sd, na.rm=T )
     # The standard deviation of expenditure.  Drop 1995 as it looks wrong.
@@ -350,6 +353,12 @@ with( real.expd.t, plot( Year, France, lwd=2, col='red', typ='l', ylim=c(.9,1.2 
 with( real.expd.t, lines( Year, Germany, lwd=2, col='blue', typ='l' ) )
 abline( h=mu.expd.t, col=c('red', 'blue'), lty=2)
     # Plot the data to have a quick look at the two variances
+### PROBLEM: GOVERNMENT EXPENDITURE MORE VARIABLE THAN TAXES ###
+### SOLUTION: USE GOVERNMENT CONSUMPTION INSTEAD ###
+sd.tax.t <- apply(exp(tax.dt[,cts]),2,sd)
+mu.gc.t <- apply( real.gc.t[,cts], 2, mean, na.rm=T )
+sd.gc.t <- apply( real.gc.t[,cts], 2, sd, na.rm=T )
+    # Standard deviation of detrended government consumption and taxes
 
 ## 8. Interest rates ##
 rr <- mean(as.matrix(real.int[,cts])) / 100
@@ -378,5 +387,5 @@ T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
     # For some reason, reading T.vals directly in julia gives an error
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
-save( l.indiv, mu.debt.t, sd.expd.t, mu.expd.t, gam, nn, rr, T.vals.temp, 
+save( l.indiv, mu.debt.t, sd.gc.t, mu.gc.t, gam, nn, rr, T.vals.temp, 
       T.p, n.Z, n.ar1, file = save.file )  # l.indiv

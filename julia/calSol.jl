@@ -29,7 +29,7 @@ nn = params_R["nn"].data[1]
 rr = params_R["rr"].data[1]
     # Direct parameters: Trend revenue growth, population growth, and the real interest rate
 debtTaxRatio = params_R["mu.debt.t"].data
-sdGovExp = params_R["sd.expd.t"].data
+sdGovExp = params_R["sd.gc.t"].data
     # Calibration targets: Average debt and standard deviation of governemnt expenditure
 taxes = [ exp( params_R["l.indiv"].data[i].data[1].data )
             for i in 1:2 ]
@@ -48,11 +48,13 @@ trans_jt = zeros( nT_jt , nT_jt )
 ### 1. Solving the model ###
 sig = [ 1 1 ]
 betta = [ .95 .95 ]
-nb = 20
+gbar = [ .7 .7 ]
+nb = 40
 tol = 1e-4
     # Start with a coarse solution
-indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i], nn=nn,
-                          T=taxes[i], P=trans[i], nb=nb ) for i in 1:2 ]
+indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
+                            gbar=bar[i], nn=nn, T=taxes[i],
+                            P=trans[i], nb=nb ) for i in 1:2 ]
 indiv_as = [ solve_am(indiv_am[i], tol=tol) for i in 1:2 ]
 indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
 
