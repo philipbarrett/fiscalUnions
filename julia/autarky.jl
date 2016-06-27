@@ -4,7 +4,7 @@ Philip Barrett, pobarrett@gmail.com
 
 Computes the government's optimal expenditure problem in response to uncertain
 tax income.  Based on Spencer Lyon's ifp.jl file on quantecon =#
-using Plots, Interpolations, Optim
+using Interpolations, Optim
 
 # # utility and marginal utility functions
 # u(x) = log(x)
@@ -53,7 +53,7 @@ function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1, gbar=.7,
 
   bgrid = linspace( bmin, ( minimum(T) - gbar ) / ( r - gam ), nb )
 
-  return AutarkyModel( r, betta, gam, sig, nn, P, T, length(T), bgrid, nb )
+  return AutarkyModel( r, betta, gam, sig, gbar, nn, P, T, length(T), bgrid, nb )
 end
 
 """
@@ -140,7 +140,7 @@ Initialize the matrices for V, bprime, and g
 """
 function vbg_init( am::AutarkyModel )
   bprime = am.bgrid * ones( 1, am.nT ) - .05
-      # Redcue from max possible to prevent g=0
+      # Reduce from max possible to prevent g=0
   g = ones( am.nb, 1 ) * am.T' - ( am.r - am.gam ) * bprime
   pd = ( am.sig == 1 ) ? log(g-am.gbar) : (g-am.gbar) ^ (1-am.sig) / (1-am.sig)
   V = 1 / ( 1 - am.betta ) * pd
@@ -163,7 +163,8 @@ None: `vOut`, `bOut` and `gOut` are updated in place.
 function bellman_operator!(am::AutarkyModel, V::Matrix,
                   vOut::Matrix, bOut::Matrix, gOut::Matrix )
     # simplify names, set up arrays
-  r, betta, gam, sig, gbar, P, T, nT = am.r, am.betta, am.gam, am.sig, am.gbar, am.P, am.T, am.nT
+  r, betta, gam, sig, gbar, P, T, nT =
+        am.r, am.betta, am.gam, am.sig, am.gbar, am.P, am.T, am.nT
   bgrid, nb = am.bgrid, am.nb
   bmin = minimum(bgrid)
   bmax = maximum(bgrid)
@@ -179,16 +180,16 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
       for j in T_idx
           cont += vf[bprime, j] * P[iT, j]
       end
-      g = thisT - gbar + (1+gam)*bprime - (1+r)*thisb
+      g = thisT + (1+gam) * bprime - (1+r)*thisb
           # Gov expenditure
       util = ( sig == 1 ) ? log(g-gbar) : (g-gbar) ^ (1-sig) / (1-sig)
           # Period utility
       return -( util + betta * ( (1+gam) / (1+nn) ) ^ (1-sig) * cont )
     end
 
-    opt_lb = ( (1+r) * thisb - thisT ) / ( 1 + gam )
+    opt_lb = ( (1+r) * thisb - thisT + gbar ) / ( 1 + gam )
         # Debt cannot be so low that the government expenditure
-        # is negative
+        # is gbar
 
     res = optimize(obj, opt_lb, bmax + 1e-10 )
     bprime_star = res.minimum

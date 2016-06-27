@@ -5,7 +5,7 @@ Philip Barrett, pobarrett@gmail.com
 Simulates an AutarkySol object
 =#
 
-using QuantEcon
+using QuantEcon: MarkovChain, simulate
 
 """
     sim_am( as::AutarkySol, n::Int = 1e7, burn::Int = 1e5 )
@@ -16,8 +16,8 @@ function sim_am( as::AutarkySol, n::Int = 1_000_000, burn::Int = 10_000,
 
   # Set up
   bInit = 0
-  taxMC = MarkovChain( as.am.P )
-  taxIdx = simulate(taxMC, n+burn)
+  taxMC = QuantEcon.MarkovChain( as.am.P )
+  taxIdx = QuantEcon.simulate(taxMC, n+burn)
   taxSim = as.am.T[taxIdx]
   out = ones( n + burn, 4 )
   out[:,1] = taxSim

@@ -11,7 +11,7 @@ include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
 
 ## 0.2 Libraries ##
-using DataFrames, Polygons
+using DataFrames, Polygons, Gadfly
 
 ## 0.3 model settings ##
 param_file = "/home/philip/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata"
@@ -48,12 +48,12 @@ trans_jt = zeros( nT_jt , nT_jt )
 ### 1. Solving the model ###
 sig = [ 1 1 ]
 betta = [ .95 .95 ]
-gbar = [ .7 .7 ]
+gbar = [ .8 .8 ]
 nb = 40
 tol = 1e-4
     # Start with a coarse solution
 indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
-                            gbar=bar[i], nn=nn, T=taxes[i],
+                            gbar=gbar[i], nn=nn, T=taxes[i],
                             P=trans[i], nb=nb ) for i in 1:2 ]
 indiv_as = [ solve_am(indiv_am[i], tol=tol) for i in 1:2 ]
 indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
