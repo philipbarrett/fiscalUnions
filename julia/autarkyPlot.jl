@@ -6,3 +6,8 @@ Plots an AutarkySol object
 =#
 
 using Gadfly
+
+function au_plot_core( Vector )
+
+
+end

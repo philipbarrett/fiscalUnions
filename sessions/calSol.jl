@@ -9,9 +9,10 @@ Calculates the calibrated solution to the autarky and first best solutions  =#
 ## 0.1 Include function definitions ##
 include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
+include("../julia/autarkyPlot.jl")
 
 ## 0.2 Libraries ##
-using DataFrames, Polygons, Gadfly
+using DataFrames, Polygons
 
 ## 0.3 model settings ##
 param_file = "/home/philip/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata"
