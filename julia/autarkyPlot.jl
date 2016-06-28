@@ -41,10 +41,18 @@ function plot_as( as::AutarkySol, part::AbstractString="V" )
       # Plot
 end
 
-# """
-#     plot_sim( sim::Matrix, pds=1:100 )
-# Plots (some periods of) a simulation
-# """
-# function plot_sim( sim::Matrix, pds=1:100 )
-#
-# end
+"""
+    plot_sim( sim::Matrix, pds=1:100 )
+Plots (some periods of) a simulation
+"""
+function plot_sim( sim::Matrix, pds=1:100 )
+  color_vec = [ "red" "blue" "black" ]
+      # Theme(default_color=)?
+  mu = mean( sim, 1 )
+  y = ( sim - ( ones( size( sim )[1], 4 ) *  mu ) )[ :, [ 1 2 4] ]
+      # Normalized values
+  Gadfly.plot( [ layer( x=pds, y=y[:,i], Geom.line,
+             Theme(default_color=color(parse(Colorant, color_vec[i]))) )
+             for i in 1:3 ]... )
+
+end

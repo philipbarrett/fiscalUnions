@@ -47,12 +47,12 @@ trans_jt = zeros( nT_jt , nT_jt )
     # Individual and joint
 
 ### 1. Solving the model ###
-sig = [ 8 8 ]
-betta = [ 1.02 1.02 ]
-gbar = [ .85 .85 ]
+sig = [ 2 2  ]
+betta = [ 1.02 1.05 ]
+gbar = [ .85 .9 ]
 nb = 40
 tol = 1e-5
-maxiter=600
+maxiter=300
     # Start with a coarse solution
 betta_hat = betta .* ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
 betta_lim = ( 1 + gam ) / ( 1 + rr )

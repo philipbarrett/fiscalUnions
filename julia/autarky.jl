@@ -225,9 +225,9 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
     while (tol < dist) && (it < maxiter)
       it += 1
       bellman_operator!( am, V, Vprime, bprime, g )
-      dist = maxabs(V - Vprime)) / mean( abs(V) )
+      dist = maxabs(V - Vprime) / mean( abs(V) )
       copy!(V, Vprime)
-      mod(it, 50) == 0 ? println(it, "\t", dist) : nothing
+      mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
     end
     return AutarkySol( am, Vprime, bprime, g, it, dist )
 end
@@ -246,7 +246,7 @@ function solve_am(am::AutarkyModel, am_init::AutarkyModel; tol=1e-6, maxiter=500
       bellman_operator!( am, V, Vprime, bprime, g )
       dist = maxabs(V - Vprime) / mean( abs(V) )
       copy!(V, Vprime)
-      mod(it, 50) == 0 ? println(it, "\t", dist) : nothing
+      mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
     end
     return AutarkySol( am, Vprime, bprime, g, it, dist )
 end
