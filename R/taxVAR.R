@@ -381,6 +381,9 @@ if( 'Germany' %in% cts ){
     mean( debt.t[ !is.na( debt.t$Germany ), other ], na.rm=T )
 }
 
+## 10. Scaling ##
+rho <- mean( pop[,cts[2]] / pop[,cts[1]] )
+chi <- mean( real.tax[,cts[2]] / real.tax[,cts[1]] )
 
 ## 10. Save the results ##
 T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
@@ -388,4 +391,4 @@ T.vals.temp <- matrix( 0, nrow(T.vals), ncol(T.vals) )
 for( i in 1:length(T.vals) ) T.vals.temp[i] <- T.vals[i]
     # Fill the values by hand
 save( l.indiv, mu.debt.t, sd.gc.t, mu.gc.t, gam, nn, rr, T.vals.temp, 
-      T.p, n.Z, n.ar1, file = save.file )  # l.indiv
+      T.p, n.Z, n.ar1, rho, chi, file = save.file )  # l.indiv
