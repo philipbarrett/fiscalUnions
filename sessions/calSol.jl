@@ -32,6 +32,9 @@ rr = params_R["rr"].data[1]
 debtTaxRatio = params_R["mu.debt.t"].data
 sdGovExp = params_R["sd.gc.t"].data
     # Calibration targets: Average debt and standard deviation of governemnt expenditure
+chi = params_R["chi"].data
+rho = params_R["rho"].data
+    # The scale paameters
 taxes = [ exp( params_R["l.indiv"].data[i].data[1].data )
             for i in 1:2 ]
 taxes_jt = zeros( nT_jt , 2 )
@@ -47,14 +50,15 @@ trans_jt = zeros( nT_jt , nT_jt )
     # Individual and joint
 
 ### 1. Solving the model ###
-sig = [ 2 2  ]
-betta = [ 1.02 1.05 ]
-gbar = [ .85 .9 ]
+sig = [ 20 20  ]
+betta_hat = [ .945 .89 ]
+betta = betta_hat ./
+          ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
+gbar = [ .83 .89 ]
 nb = 40
-tol = 1e-5
-maxiter=300
+tol = 1e-4
+maxiter=100
     # Start with a coarse solution
-betta_hat = betta .* ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
 betta_lim = ( 1 + gam ) / ( 1 + rr )
     # For borrowing need betta_hat < betta_lim
 indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
@@ -65,6 +69,9 @@ indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
 
 sim_mu = [ mean( indiv_sim[i], 1 ) for i in 1:2 ]
 sim_sd = [ std( indiv_sim[i], 1 ) for i in 1:2 ]
+
+gc_sd = [ sim_sd[i][4] for i in 1:2 ]
+debt_mu = [ sim_mu[i][2] for i in 1:2 ]
 
 sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
 grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]

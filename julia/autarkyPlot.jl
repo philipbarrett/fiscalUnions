@@ -49,8 +49,11 @@ function plot_sim( sim::Matrix, pds=1:100 )
   color_vec = [ "red" "blue" "black" ]
       # Theme(default_color=)?
   mu = mean( sim, 1 )
-  y = ( sim - ( ones( size( sim )[1], 4 ) *  mu ) )[ :, [ 1 2 4] ]
-      # Normalized values
+  sd = std( sim, 1 )
+  sim_pd = sim[ pds, [ 1, 2, 4 ] ]
+  y = ( sim_pd - ( ones( length(pds), 1 ) *  mu[[1 2 4]] ) ) .*
+               ( ones( length(pds), 1 ) *  [ 1 ( sd[1] / sd[2] ) 1] )
+      # Normalize debt by the variance of taxes
   Gadfly.plot( [ layer( x=pds, y=y[:,i], Geom.line,
              Theme(default_color=color(parse(Colorant, color_vec[i]))) )
              for i in 1:3 ]... )
