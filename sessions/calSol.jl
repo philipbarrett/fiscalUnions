@@ -47,8 +47,8 @@ trans_jt = zeros( nT_jt , nT_jt )
     # Individual and joint
 
 ### 1. Solving the model ###
-sig = [ 1 1 ]
-betta = [ .95 .95 ]
+sig = [ 5 5 ]
+betta = [ .97 .97 ]
 gbar = [ .8 .8 ]
 nb = 40
 tol = 1e-6
@@ -58,6 +58,9 @@ indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
                             P=trans[i], nb=nb ) for i in 1:2 ]
 indiv_as = [ solve_am(indiv_am[i], tol=tol) for i in 1:2 ]
 indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
+
+sim_mu = [ mean( indiv_sim[i], 1 ) for i in 1:2 ]
+sim_sd = [ std( indiv_sim[i], 1 ) for i in 1:2 ]
 
 # prs_m = prsModel( )
 # prs_s = solve_am( prs_m )

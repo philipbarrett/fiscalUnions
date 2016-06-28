@@ -47,7 +47,7 @@ Constructor for the autarky model object
 function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1, gbar=.7,
                         nn=0, T=-1, P=-1, nb=150, bmin=0)
 
-  if( T[1] < 0 || P[1] < 0 )
+  if ( T[1] < 0 || P[1] < 0 )
     T, P = defaultTaxes()
   end
 
@@ -140,10 +140,10 @@ Initialize the matrices for V, bprime, and g
 """
 function vbg_init( am::AutarkyModel )
   bprime = am.bgrid * ones( 1, am.nT ) - .05
-      # Reduce from max possible to prevent g=0
+      # Reduce from max possible to prevent g=gbar
   g = ones( am.nb, 1 ) * am.T' - ( am.r - am.gam ) * bprime
-  pd = ( am.sig == 1 ) ? log(g-am.gbar) : (g-am.gbar) ^ (1-am.sig) / (1-am.sig)
-  V = 1 / ( 1 - am.betta ) * pd
+  pd = ( am.sig == 1 ) ? log(g-am.gbar) : (g-am.gbar) .^ (1-am.sig) ./ (1-am.sig)
+  V = pd
   return V, bprime, g
 end
 
@@ -184,7 +184,7 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
           # Gov expenditure
       util = ( sig == 1 ) ? log(g-gbar) : (g-gbar) ^ (1-sig) / (1-sig)
           # Period utility
-      return -( util + betta * ( (1+gam) / (1+nn) ) ^ (1-sig) * cont )
+      return -( (1-betta)*util + betta * ( (1+gam) / (1+nn) ) ^ (1-sig) * cont )
     end
 
     opt_lb = ( (1+r) * thisb - thisT + gbar ) / ( 1 + gam )
