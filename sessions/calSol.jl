@@ -51,7 +51,7 @@ sig = [ 1 1 ]
 betta = [ .95 .95 ]
 gbar = [ .8 .8 ]
 nb = 40
-tol = 1e-4
+tol = 1e-6
     # Start with a coarse solution
 indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
                             gbar=gbar[i], nn=nn, T=taxes[i],
