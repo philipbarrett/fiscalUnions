@@ -47,20 +47,28 @@ trans_jt = zeros( nT_jt , nT_jt )
     # Individual and joint
 
 ### 1. Solving the model ###
-sig = [ 5 5 ]
-betta = [ .97 .97 ]
-gbar = [ .8 .8 ]
+sig = [ 8 8 ]
+betta = [ 1.02 1.02 ]
+gbar = [ .85 .85 ]
 nb = 40
-tol = 1e-6
+tol = 1e-5
+maxiter=600
     # Start with a coarse solution
+betta_hat = betta .* ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
+betta_lim = ( 1 + gam ) / ( 1 + rr )
+    # For borrowing need betta_hat < betta_lim
 indiv_am = [ AutarkyModel( r=rr, betta=betta[i], gam=gam, sig=sig[i],
                             gbar=gbar[i], nn=nn, T=taxes[i],
                             P=trans[i], nb=nb ) for i in 1:2 ]
-indiv_as = [ solve_am(indiv_am[i], tol=tol) for i in 1:2 ]
+indiv_as = [ solve_am(indiv_am[i], tol=tol, maxiter=maxiter ) for i in 1:2 ]
 indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
 
 sim_mu = [ mean( indiv_sim[i], 1 ) for i in 1:2 ]
 sim_sd = [ std( indiv_sim[i], 1 ) for i in 1:2 ]
+
+sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
+grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]
+grid_ok = all( sim_debt_max .< grid_debt_max )
 
 # prs_m = prsModel( )
 # prs_s = solve_am( prs_m )

@@ -51,7 +51,8 @@ function AutarkyModel( ; r=0.04, betta=0.9, gam=0.02, sig=1, gbar=.7,
     T, P = defaultTaxes()
   end
 
-  bgrid = linspace( bmin, ( minimum(T) - gbar ) / ( r - gam ), nb )
+  bgrid = linspace( bmin, ( minimum(T) - gbar ) / ( r - gam ) *
+                              .975, nb )
 
   return AutarkyModel( r, betta, gam, sig, gbar, nn, P, T, length(T), bgrid, nb )
 end
@@ -139,9 +140,13 @@ end
 Initialize the matrices for V, bprime, and g
 """
 function vbg_init( am::AutarkyModel )
-  bprime = am.bgrid * ones( 1, am.nT ) - .05
+  bprime = am.bgrid * ones( 1, am.nT ) - .01
       # Reduce from max possible to prevent g=gbar
-  g = ones( am.nb, 1 ) * am.T' - ( am.r - am.gam ) * bprime
+  g = ones( am.nb, am.nT ) * mean( am.T )
+  # am.T' - ( 1 + am.r ) * am.bgrid *
+  #         ones( 1, am.nT ) + ( 1 + am.gam ) * bprime
+  bprime = ( ( 1 + am.r ) * am.bgrid * ones( 1, am.nT ) + g -
+                ones( am.nb, 1 ) * am.T' )/ (1-gam)
   pd = ( am.sig == 1 ) ? log(g-am.gbar) : (g-am.gbar) .^ (1-am.sig) ./ (1-am.sig)
   V = pd
   return V, bprime, g
@@ -175,6 +180,8 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
   # solve for RHS of Bellman equation
   for (iT, thisT) in enumerate(T), (ib, thisb) in enumerate(bgrid)
 
+    betta_hat = betta * ( (1+gam) / (1+nn) ) ^ (1-sig)
+        # Effective discount rate
     function obj(bprime)
       cont = 0.0
       for j in T_idx
@@ -184,12 +191,13 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
           # Gov expenditure
       util = ( sig == 1 ) ? log(g-gbar) : (g-gbar) ^ (1-sig) / (1-sig)
           # Period utility
-      return -( (1-betta)*util + betta * ( (1+gam) / (1+nn) ) ^ (1-sig) * cont )
+
+      return -( (1-betta_hat)*util + betta_hat * cont )
     end
 
     opt_lb = ( (1+r) * thisb - thisT + gbar ) / ( 1 + gam )
         # Debt cannot be so low that the government expenditure
-        # is gbar
+        # is below gbar
 
     res = optimize(obj, opt_lb, bmax + 1e-10 )
     bprime_star = res.minimum
@@ -217,12 +225,32 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
     while (tol < dist) && (it < maxiter)
       it += 1
       bellman_operator!( am, V, Vprime, bprime, g )
-      dist = maxabs(V - Vprime) / ( 1 - am.betta )
+      dist = maxabs(V - Vprime)) / mean( abs(V) )
       copy!(V, Vprime)
       mod(it, 50) == 0 ? println(it, "\t", dist) : nothing
     end
     return AutarkySol( am, Vprime, bprime, g, it, dist )
 end
+
+function solve_am(am::AutarkyModel, am_init::AutarkyModel; tol=1e-6, maxiter=500 )
+
+    V, bprime, g = am_init.V, am_init.bprime, am_init.g
+        # Initialize the output matrices
+    Vprime = similar(V)
+
+    dist = 2*tol
+    it = 0
+
+    while (tol < dist) && (it < maxiter)
+      it += 1
+      bellman_operator!( am, V, Vprime, bprime, g )
+      dist = maxabs(V - Vprime) / mean( abs(V) )
+      copy!(V, Vprime)
+      mod(it, 50) == 0 ? println(it, "\t", dist) : nothing
+    end
+    return AutarkySol( am, Vprime, bprime, g, it, dist )
+end
+
 #
 # hh = AutarkyModel()
 # kk = solve_am(hh)
