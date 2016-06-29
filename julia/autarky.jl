@@ -76,9 +76,8 @@ end
     function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1, nb=150, bmin=0)
 Computes the perfect risk sharing model and formats it as an autarkic model
 """
-function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
-                            nb=150, bmin=0)
-
+function prsModel(; r=0.04, betta=0.9, gam=0.02, sig=1, gbar=.7,
+                        nn=0,T=-1, P=-1, nb=150, bmin=0)
   if( T[1] < 0 || P[1] < 0 )
     T1, P1 = defaultTaxes()
     nT1 = length(T1)
@@ -86,9 +85,10 @@ function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1,
     T =  [ .5 * ( T1[i] + T1[j] ) for i in 1:nT1, j in 1:nT1 ][:]
   end
 
-  bgrid = linspace( bmin, minimum(T) / ( r - gam ), nb )
+  bgrid = linspace( bmin, ( minimum(T) - gbar ) / ( r - gam ) *
+                              .975, nb )
 
-  return AutarkyModel( r, betta, gam, P, T, length(T), bgrid, nb )
+  return AutarkyModel( r, betta, gam, sig, gbar, nn, P, T, length(T), bgrid, nb )
 end
 
 """

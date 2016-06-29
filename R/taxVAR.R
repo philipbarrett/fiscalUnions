@@ -319,7 +319,7 @@ par(mfrow = c(1, 1))
 l.ar1 <- lapply( cts, function(cty) ar(tax.dt[[cty]], order.max=1 ) )
     # The list of AR(1) autoregressions
 l.indiv <- lapply( cts, function(cty) ar1.disc( n.ar1, l.ar1[[cty]]$ar, 
-                            sqrt(l.ar1$Germany$var.pred ), ext=FALSE) )
+                            sqrt(l.ar1$Germany$var.pred ), ext=TRUE) )
     # The individual countries' discretized processes
 
 

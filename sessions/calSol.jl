@@ -50,14 +50,14 @@ trans_jt = zeros( nT_jt , nT_jt )
     # Individual and joint
 
 ### 1. Solving the model ###
-sig = [ 20 20  ]
-betta_hat = [ .945 .89 ]
-betta = betta_hat ./
+sig = [ 10 10  ]
+tta = [.985 .985 ]
+betta_hat = betta .*
           ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
-gbar = [ .83 .89 ]
-nb = 40
-tol = 1e-4
-maxiter=100
+gbar = [ .84 .8695 ]
+nb = 120
+tol = 1e-5
+maxiter=150
     # Start with a coarse solution
 betta_lim = ( 1 + gam ) / ( 1 + rr )
     # For borrowing need betta_hat < betta_lim
@@ -76,6 +76,13 @@ debt_mu = [ sim_mu[i][2] for i in 1:2 ]
 sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
 grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]
 grid_ok = all( sim_debt_max .< grid_debt_max )
+
+
+prs_m = prsModel( r=rr, betta=betta[1], gam=gam, sig=mean(sig), gbar=mean(gbar),
+                  nn=nn, T=mean(taxes_jt, 2), P=trans_jt, nb=nb )
+prs_s = solve_am( prs_m )
+prs_sim = sim_am( prs_s )
+
 
 # prs_m = prsModel( )
 # prs_s = solve_am( prs_m )
