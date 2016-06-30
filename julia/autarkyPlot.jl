@@ -59,3 +59,22 @@ function plot_sim( sim::Matrix, pds=1:100 )
              for i in 1:3 ]... )
 
 end
+
+"""
+    plot_sim( sim::Matrix, pds=1:100 )
+Plots (some periods of) a simulation
+"""
+function plot_sim_prs( sim::Matrix, pds=1:100, chi=1 )
+  color_vec = [ "red" "blue" "black" "green" ]
+      # Theme(default_color=)?
+  mu = mean( sim, 1 )
+  sd = std( sim, 1 )
+  sim_pd = sim[ pds, [ 1, 2, 4, 5 ] ]
+  y = ( sim_pd - ( ones( length(pds), 1 ) *  mu[[1 2 4 5]] ) ) .*
+               ( ones( length(pds), 1 ) *  [ 1 / ( 1 + chi ) ( sd[1] / sd[2] ) 1 1] )
+      # Normalize debt by the variance of taxes
+  Gadfly.plot( [ layer( x=pds, y=y[:,i], Geom.line,
+             Theme(default_color=color(parse(Colorant, color_vec[i]))) )
+             for i in 1:4 ]... )
+
+end

@@ -11,6 +11,7 @@ include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
 include("../julia/autarkyPlot.jl")
 include("../julia/prs.jl")
+include("../julia/prsSim.jl")
 
 ## 0.2 Libraries ##
 using DataFrames, Polygons
@@ -49,6 +50,7 @@ end
 trans_jt = zeros( nT_jt , nT_jt )
 [ trans_jt[j] = params_R["T.p"].data[j] for j in 1:(nT_jt^2) ]
     # Individual and joint
+trans_jt = trans_jt ./ ( sum(trans_jt, 2) * ones( 1, nT_jt ) )
 
 ### 1. Solving the model ###
 sig = [ 10 10  ]
@@ -83,7 +85,12 @@ prs_m = prsModel( r=rr, betta=betta[1], gam=gam, sig=sig[1], gbar=gbar,
                   nn=nn, T=tax_sum, P=trans_jt, lam=.5, chi=chi,
                   rho=rho, nb=nb )
 prs_s = solve_pm( prs_m )
-# prs_sim = sim_am( prs_s )
+prs_sim = sim_pm( prs_s )
+
+mu_prs = mean( prs_sim, 1 ) ./ [ 1+chi 1+chi 1+chi 1 1 ]
+sd_prs = std( prs_sim, 1 ) ./ [ 1+chi 1+chi 1+chi 1 1 ]
+
+
 
 
 # prs_m = prsModel( )
