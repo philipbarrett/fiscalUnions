@@ -10,6 +10,7 @@ Calculates the calibrated solution to the autarky and first best solutions  =#
 include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
 include("../julia/autarkyPlot.jl")
+include("../julia/prs.jl")
 
 ## 0.2 Libraries ##
 using DataFrames, Polygons
@@ -32,8 +33,8 @@ rr = params_R["rr"].data[1]
 debtTaxRatio = params_R["mu.debt.t"].data
 sdGovExp = params_R["sd.gc.t"].data
     # Calibration targets: Average debt and standard deviation of governemnt expenditure
-chi = params_R["chi"].data
-rho = params_R["rho"].data
+chi = params_R["chi"].data[1]
+rho = params_R["rho"].data[1]
     # The scale paameters
 taxes = [ exp( params_R["l.indiv"].data[i].data[1].data )
             for i in 1:2 ]
@@ -51,10 +52,10 @@ trans_jt = zeros( nT_jt , nT_jt )
 
 ### 1. Solving the model ###
 sig = [ 10 10  ]
-tta = [.985 .985 ]
+betta = [.985; .985 ]
 betta_hat = betta .*
           ( ( 1 + gam ) / ( 1 + nn ) ) .^ ( 1 - sig )
-gbar = [ .84 .8695 ]
+gbar = [ .84; .8695 ]
 nb = 120
 tol = 1e-5
 maxiter=150
@@ -77,11 +78,12 @@ sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
 grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]
 grid_ok = all( sim_debt_max .< grid_debt_max )
 
-
-prs_m = prsModel( r=rr, betta=betta[1], gam=gam, sig=mean(sig), gbar=mean(gbar),
-                  nn=nn, T=mean(taxes_jt, 2), P=trans_jt, nb=nb )
-prs_s = solve_am( prs_m )
-prs_sim = sim_am( prs_s )
+tax_sum::Vector = taxes_jt[:,1] + chi * taxes_jt[:,2]
+prs_m = prsModel( r=rr, betta=betta[1], gam=gam, sig=sig[1], gbar=gbar,
+                  nn=nn, T=tax_sum, P=trans_jt, lam=.5, chi=chi,
+                  rho=rho, nb=nb )
+prs_s = solve_pm( prs_m )
+# prs_sim = sim_am( prs_s )
 
 
 # prs_m = prsModel( )

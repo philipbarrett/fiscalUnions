@@ -121,13 +121,10 @@ end
 Initialize the matrices for V, bprime, and g
 """
 function vbg_init( am::AutarkyModel )
-  bprime = am.bgrid * ones( 1, am.nT ) - .01
-      # Reduce from max possible to prevent g=gbar
   g = ones( am.nb, am.nT ) * mean( am.T )
-  # am.T' - ( 1 + am.r ) * am.bgrid *
-  #         ones( 1, am.nT ) + ( 1 + am.gam ) * bprime
+      # Constant govt consumption (at avg)
   bprime = ( ( 1 + am.r ) * am.bgrid * ones( 1, am.nT ) + g -
-                ones( am.nb, 1 ) * am.T' )/ (1-gam)
+                ones( am.nb, 1 ) * am.T' )/ (1+gam)
   pd = ( am.sig == 1 ) ? log(g-am.gbar) : (g-am.gbar) .^ (1-am.sig) ./ (1-am.sig)
   V = pd
   return V, bprime, g

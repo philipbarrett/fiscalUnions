@@ -32,3 +32,8 @@ scatter(kk[:,1], kk[:,2])
 plot!( pp[:,1], pp[:,2], lw=2, col='r')
 oo = gScan(pp)
 plot!( oo[:,1], oo[:,2], lw=2, col='g')
+
+plot( layer( x=taxes_jt[:,1], y=taxes_jt[:,2], Geom.point,
+                  Theme(default_color=color( "red") ) ),
+      layer( x=taxes_jt[:,1], y=tax_sum/(1+chi), Geom.point,
+                        Theme(default_color=color( "blue") ) ) )
