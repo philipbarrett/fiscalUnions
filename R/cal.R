@@ -34,6 +34,8 @@ int.file <- '~/Dropbox/data/2016/fiscalUnions/interestRates.csv'
     # Interest rates
 debt.file <- '~/Dropbox/data/2016/fiscalUnions/govtDebt.csv'
     # Debt/GDP ratios
+pop.file <- '~/Dropbox/data/2016/fiscalUnions/population.csv'
+    # Population data
 cts <- c("Germany", "France")
 alp.code <- c( 'T_GDPHRS', 'C')       # GDP per hour worked, current prices
 expd.code <- c( 'GTE', 'GS13')        # Total expenditure, general government
@@ -144,6 +146,25 @@ names(gcons)[ ncol(gcons)-0:1] <- sapply( names(gcons)[ ncol(gcons)-0:1], functi
 gcons[,cts] <- gcons[,cts] / 1e6
     # Adjust the names
 
+### 2.7 Population ###
+df.pop <- read_csv( pop.file )
+df.pop <- df.pop[ !is.na(df.pop[['Country Code']]), ]
+df.pop <- df.pop[, -(2:4) ]
+names( df.pop ) <- sapply( names( df.pop ), 
+                           function(x) strsplit(x, ' ')[[1]][1] )
+df.pop <- subset( df.pop, Country %in% cts )
+    # Clean the data
+pop.melt <- melt(df.pop, id='Country' ) 
+names( pop.melt )[2:3] <- c('Year', 'Population')
+for( i in 2:3 ) pop.melt[,i] <- as.numeric( as.character( pop.melt[,i ] ) )
+    # Melt down the data
+pop <- reshape( subset( pop.melt, Year >= y.min ), timevar='Country', 
+                idvar='Year', direction='wide' )
+    # Reshape as required
+rownames(pop) <- NULL
+names(pop)[ ncol(pop)-0:1] <- sapply( names(pop)[ ncol(pop)-0:1], function(x) substr(x,12,nchar(x)) )
+    # Adjust the names
+
 ## 3. Create single-country VARs
 
 ### 3.1 Create and filter real ave Labor Prod'y
@@ -179,8 +200,8 @@ with( g.shr, lines( Year, Germany, lwd=2, col='red' ) )
     # Quick plot
 ave.g.shr <- apply(g.shr[,cts], 2, mean, na.rm=T )
     # Average share of G in GDP
-g.bar <- ave.g.shr
 A.bar <- 1 / ( 1 - x.bar )
+g.bar <- ave.g.shr
     # So average output is unity and g is relative to GDP
 real.g <- data.frame( Year = df.g$Year, df.g[,cts] / gdp.def[,cts] * 100 )
     # NB: SHOULD UPDATE TO ALLOW FOR DIFFERENT DEFLATOR FOR EXPENDITURE
@@ -339,14 +360,55 @@ Z <- kmeans( X, n.Z.joint )$centers
     # The Z points
 T.p.joint <- trans_prob( phi.joint, X, eps, Z )
     # The transition probabilities
-T.vals.joint <- exp(Z) * ( rep(1,nrow(Z)) %*% t(c( A.bar, g.bar[1], A.bar, g.bar[2] ) ) )
-    # Return to the level of the shocks (not logs)
+T.vals.joint <- exp(Z) * ( rep(1,nrow(Z)) %*% t(c( rep( A.bar, length(cts)), g.bar ) ) )
+    # Return to the level of the shocks (not logs).  NO SCALING HERE!!!
+colnames( T.vals.joint ) <- paste0( rep( c("A.","g."), each=length(cts)), cts )
+    # Label the columns
 ergodic.joint <- ( T.p.joint %^% 100)[1,]
     # The ergodic distribution
-plot( T.vals.joint[,1:2], cex = ergodic.joint * 80, main="Ergodic distribution",
-      xlim=range( T.vals.joint[,c(1,3)] ), col='red', lwd=2,
-      ylim=range( T.vals.joint[,c(2,4)] ), xlab='A', ylab='g' ) 
-points( T.vals.joint[,3:4], cex = ergodic.joint * 80, col='blue', lwd=2 ) 
+plot( T.vals.joint[,c(1,3)], cex = ergodic.joint * 80, main="Ergodic distribution",
+      xlim=range( T.vals.joint[,1:2] ), col='red', lwd=2,
+      ylim=range( T.vals.joint[,3:4] ), xlab='A', ylab='g' ) 
+points( T.vals.joint[,c(2,4)], cex = ergodic.joint * 80, col='blue', lwd=2 ) 
     # Plot the ergodic distribution
 heatmap(T.p.joint, Colv ="Rowv", main='Joint transition probabilities' )
     # Heatmap of transition probabilities
+
+## 7. Simulate the discretized process and compare to the VAR ##
+mc.joint <- new( "markovchain", byrow=TRUE, transitionMatrix=T.p.joint, name="Joint" )
+    # The markov chain object
+set.seed(1234)
+sim.joint <- T.vals.joint[as.numeric(rmarkovchain( n.sim, mc.joint, useRCpp=TRUE ) ), ]
+rownames(sim.joint) <- NULL
+colnames(sim.joint) <- colnames( T.vals.joint ) 
+    # Simulated taxes
+
+### 7.1 Plot the covariance ###
+cov.mc.joint <- list( Germany=cov(log(sim.joint[,c(1,3)])), 
+                      France=cov(log(sim.joint[,c(2,4)])) )
+par(mfrow = c(1, 2))
+for( cty in cts ){
+  barplot( rbind( cov.A.g[[cty]][c(1,2,4)], 
+                  cov.mc.joint[[cty]][c(1,2,4)] ), 
+           beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' covariances'),
+           legend.text=c( 'Data', 'Markov Chain \nSimulation (joint)' ),
+           args.legend =list(x='topleft', bty='n') )
+}
+par(mfrow=c(1,1))
+
+
+### 8. Scaling ###
+rho <- mean( pop[,cts[1]] / ( apply( pop[,cts], 1, sum ) ) )
+    # Population shares
+gdp.shr <- data.frame( nom.gdp$Year, nom.gdp[,cts] / apply( nom.gdp[,cts],1, sum ) )
+    # Share of total GDP
+ave.gdp.shr <- apply( gdp.shr[,cts], 2, mean )
+    # Average shares
+A.bar.joint <- 1/ ( 1 - x.bar ) * ave.gdp.shr / c( rho, 1-rho )
+g.bar.joint <- ave.gdp.shr * ave.g.shr
+g.bar.joint.chk <- g.bar * A.bar.joint / A.bar * c(rho, 1-rho )
+if(!all( g.bar.joint == g.bar.joint.chk ) ) warning( 'g.bar.joint check fails' )
+    # Scaling
+T.vals.joint <- exp(Z) * ( rep(1,nrow(Z)) %*% t(c( A.bar.joint, g.bar.joint ) ) )
+
+## TO ADD: SCALING AND SAVING ###
