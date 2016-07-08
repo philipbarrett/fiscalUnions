@@ -5,4 +5,4 @@ psi = .75
 chi = 7.0
 r = .03
 
-x1, x2, x, tau, R, c, W, blim = dwl( A, g, n, psi, chi, r)
+dd = DWL( A=A, g=g, n=n, psi=psi, chi=chi, r=r )

@@ -5,8 +5,22 @@ Philip Barrett, pobarrett@gmail.com
 Creates a deadweight loss object
 =#
 
-function dwl( A::Vector, g::Vector, n::Int, psi::Float64,
-              chi::Float64, r::Float64, rho::Float64=1.0 )
+using Gadfly, Colors
+
+type DWL
+  x1::Vector{Float64}   # Lower bound on leisure
+  x2::Vector{Float64}   # Upper bound on leisure
+  x::Array{LinSpace{Float64},1}  # Leisure grids
+  tau::Matrix{Float64}  # Tax rates
+  R::Matrix{Float64}    # Revenue
+  c::Matrix{Float64}    # Consumption
+  W::Matrix{Float64}    # Deadweight loss
+  blim::Float64         # Upper bound on debt
+end
+
+function DWL( ; A::Vector=[0.0], g::Vector=[0.0], n::Int=1,
+              psi::Float64 = 1, chi::Float64 = 1, r::Float64 = .03,
+              rho::Float64=1.0 )
 
   m::Int = size(A)[1]
       # Number of states
@@ -34,8 +48,47 @@ function dwl( A::Vector, g::Vector, n::Int, psi::Float64,
       # Total deadweight loss (i.e. not per capita)
   blim = 1 / r * minimum( R[:,n] - g )
       # Nautral borrowing limit
-
-  return x1, x2, x, tau, R, c, W, blim
+  return DWL( x1, x2, x, tau, R, c, W, blim )
+      # The dwl object
 end
 
 ### TODO: ADD PLOTTING HERE: (tau,R), (x,c), (x,R), (R,W)
+
+function DWLplot( dw::DWL, chart="tR" )
+
+  color_vec = [ "magenta" "red" "blue" "black" "green" "cyan" "orange"  ]
+
+  if chart == "tR"
+    x = dw.tau
+    y = dw.R
+    xlab = "tau"
+    ylab = "Revenue"
+  end
+
+  if chart == "RW"
+    x = dw.R
+    y = dw.W
+    xlab = "Revenue"
+    ylab = "Deadweight loss"
+  end
+
+  if chart == "xc"
+    y = dw.c
+    x = [ dw.x[i][j] for i in 1:(size(y)[1]), j in 1:(size(y)[2]) ]
+    xlab = "Leisure"
+    ylab = "Consumption"
+  end
+
+  if chart == "xR"
+    y = dw.R
+    x = [ dw.x[i][j] for i in 1:(size(y)[1]), j in 1:(size(y)[2]) ]
+    xlab = "Leisure"
+    ylab = "Revenue"
+  end
+
+  Gadfly.plot( [ layer( x=x[i,:], y=y[i,:], Geom.line,
+             Theme(default_color=color(parse(Colorant, color_vec[i%7+1]))) )
+             for i in 1:(size(y)[1]) ]...,
+               Guide.xlabel(xlab), Guide.ylabel(ylab) )
+
+end
