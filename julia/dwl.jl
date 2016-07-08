@@ -16,9 +16,11 @@ type DWL
   c::Matrix{Float64}    # Consumption
   W::Matrix{Float64}    # Deadweight loss
   blim::Float64         # Upper bound on debt
+  nS::Int               # Number of exogenous states
+  nR::Int               # Number of R values
 end
 
-function DWL( ; A::Vector=[0.0], g::Vector=[0.0], n::Int=1,
+function DWL( ; A::Vector=[0.0], g::Vector=[0.0], nR::Int=1,
               psi::Float64 = 1, chi::Float64 = 1, r::Float64 = .03,
               rho::Float64=1.0 )
 
@@ -33,22 +35,22 @@ function DWL( ; A::Vector=[0.0], g::Vector=[0.0], n::Int=1,
       # Lower bound for leisure
   x2 = [ 1 - ( A[i] * psi / ( chi * ( 1 + psi ) ) ) ^ psi for i in 1:m ]
       # Upper bound for leisure
-  x = [ linspace( x1[i], x2[i], n ) for i in 1:m ]
+  x = [ linspace( x1[i], x2[i], nR ) for i in 1:m ]
       # The range of x values
   tau = [ max( 0, 1 - chi * ( 1 - x[i][j] ) ^ ( 1 / psi ) / A[i] )
-            for i in 1:m, j in 1:n ]
+            for i in 1:m, j in 1:nR ]
       # Taxes.  Should be same for all rows due to functional form.
       # Need max to prevent tiny tiny negative taxes.
-  R = [ tau[i,j] * ( 1 - x[i][j] ) * rho * A[i] for i in 1:m, j in 1:n ]
+  R = [ tau[i,j] * ( 1 - x[i][j] ) * rho * A[i] for i in 1:m, j in 1:nR ]
       # Revenue
-  c = [ ( 1 - x[i][j] ) * A[i] - g[i] / rho for i in 1:m, j in 1:n ]
+  c = [ ( 1 - x[i][j] ) * A[i] - g[i] / rho for i in 1:m, j in 1:nR ]
       # Per capita consumption
   W = [ x[i][j] * rho * A[i] - rho * chi * ( 1 - x[i][j] ) ^
-          ( 1 + 1 / psi ) / ( 1 + 1 / psi ) for i in 1:m, j in 1:n ]
+          ( 1 + 1 / psi ) / ( 1 + 1 / psi ) for i in 1:m, j in 1:nR ]
       # Total deadweight loss (i.e. not per capita)
-  blim = 1 / r * minimum( R[:,n] - g )
+  blim = 1 / r * minimum( R[:,nR] - g )
       # Nautral borrowing limit
-  return DWL( x1, x2, x, tau, R, c, W, blim )
+  return DWL( x1, x2, x, tau, R, c, W, blim, m, nR )
       # The dwl object
 end
 
