@@ -91,6 +91,7 @@ type AutarkySol
   V::Matrix
   bprime::Matrix
   R::Matrix
+  x::Matrix
 
   # Algorithm reports
   iter::Int
@@ -101,8 +102,8 @@ end
     AutarkySol( am, V, bprime, g, iter, dist )
 Constructor for the autarky solution object
 """
-function AutarkySol( am, V, bprime, R, iter, dist )
-  return AutarkySol( am, V, bprime, R, iter, dist )
+function AutarkySol( am, V, bprime, R, x, iter, dist )
+  return AutarkySol( am, V, bprime, R, x, iter, dist )
 end
 
 """
@@ -158,11 +159,17 @@ function vbg_init( am::AutarkyModel )
                 ones( am.nb, 1 ) * am.g'
   bprime[bprime.<am.bgrid[1]] = am.bgrid[1]
   wf = interpolate(am.dw.W, (NoInterp(), BSpline(Linear())), OnGrid())
+  xf = [ interpolate(am.dw.x[i], BSpline(Linear()), OnGrid()) for i in 1:am.nS ]
+      # W and x interpolation functions
   Ridx = [ idxLoc( mean(am.g), am.dw.R'[:,i] ) for i in 1:am.nS ]
       # Index of R in interpolation:
-  V::Matrix{Float64} = ones( am.nb ) * [ wf[ i, Ridx[i] ] for i in 1:am.nS ]'
-      # Copy average vaule across the rows
-  return V, bprime, R
+  V::Matrix{Float64} = ones( am.nb ) *
+              [ wf[ i, Ridx[i] ] for i in 1:am.nS ]'
+      # Copy average value across the rows
+  x::Matrix{Float64} = ones( am.nb ) *
+              [ xf[i][ Ridx[i] ]::Float64 for i in 1:am.nS ]'
+      # The associated x value
+  return V, bprime, R, x
 end
 
 """
@@ -179,7 +186,7 @@ Apply the Bellman operator for a given model and initial value.
 None: `vOut`, `bOut` and `gOut` are updated in place.
 """
 function bellman_operator!(am::AutarkyModel, V::Matrix,
-                  vOut::Matrix, bOut::Matrix, ROut::Matrix )
+      vOut::Matrix, bOut::Matrix, ROut::Matrix, xOut::Matrix )
     # simplify names, set up arrays
   r, betta, delta, W, Rgrid, P, A, g, nS, nR =
                     am.r, am.betta, am.delta, am.dw.W, am.dw.R, am.P,
@@ -191,6 +198,8 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
   s_idx = 1:length(A)
   vf = interpolate(am, V)
   wf = interpolate(W, (NoInterp(), BSpline(Linear())), OnGrid())
+  xf = [ interpolate(am.dw.x[i], BSpline(Linear()), OnGrid())
+                    for i in 1:nS ]
   RR = Rgrid'
 
   # solve for RHS of Bellman equation
@@ -223,6 +232,7 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
     vOut[ib, iS] = obj(bprime_star)
     bOut[ib, iS] = bprime_star
     ROut[ib, iS] = g[iS] + ( 1 + r ) * thisb - bprime_star
+    xOut[ib, iS] = xf[iS][ROut[ib, iS]]
   end
   return nothing
 end
@@ -233,7 +243,7 @@ Solves the autarky model using value function iteration
 """
 function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
 
-    V, bprime, R = vbg_init(am)
+    V, bprime, R, x = vbg_init(am)
         # Initialize the output matrices
     Vprime = similar(V)
 
@@ -242,12 +252,12 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
 
     while (tol < dist) && (it < maxiter)
       it += 1
-      bellman_operator!( am, V, Vprime, bprime, R )
+      bellman_operator!( am, V, Vprime, bprime, R, x )
       dist = maxabs(V - Vprime) / mean( abs(V) )
       copy!(V, Vprime)
       mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
     end
-    return AutarkySol( am, Vprime, bprime, R, it, dist )
+    return AutarkySol( am, Vprime, bprime, R, x, it, dist )
 end
 
 # function solve_am(am::AutarkyModel, am_init::AutarkyModel; tol=1e-6, maxiter=500 )

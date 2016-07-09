@@ -238,7 +238,7 @@ par(mfrow=c(1,1))
 n.pds <- min( sapply( list( real.g.cycle, real.alp.cycle ), nrow ) )
     # Number of periods
 
-## 4. Create the VARs ##
+# ## 4. Create the VARs ##
 var.A.g <- lapply( cts, function(cty) 
               VAR( cbind( alp=real.alp.cycle[1:n.pds,cty], 
                           g=real.g.cycle[1:n.pds,cty] ), type='none' ) )
@@ -249,92 +249,92 @@ cor.A.g <- sapply( cts, function(cty) cor( real.alp.cycle[1:n.pds,cty],
 cov.A.g <- lapply( cts, function(cty) var( cbind( real.alp.cycle[1:n.pds,cty], 
                                            real.g.cycle[1:n.pds,cty] ) ) )
     # The covariance
-phi <- lapply( cts, function(cty) t( sapply( c('alp','g'),
-                     function(vble) var.A.g[[cty]]$varresult[[vble]]$coefficients ) ) )
-    # The matrix of auto-regressive coefficients
-sig <- lapply( cts, function(cty) summary(var.A.g[[cty]])$covres )
-    # The Covariance of the residuals
-lam <- lapply( cts, function(cty) lyapunovEq( phi[[cty]], sig[[cty]] ) )
-    # The covariance of the stationary distribution
-X <- lapply( lam, function(x) rmvnorm( nn, sigma=x ) )
-eps <- lapply( sig, function(x) rmvnorm( nn, sigma=x ) )
-    # Random variables for integration
-X.prime.e <- lapply( cts, function(cty) X[[cty]] %*% t(phi[[cty]]) )
-    # Expected value of X prime
-Z <- lapply( X, function(x) kmeans( x, n.Z )$centers )
-    # The Z points
-T.p <- lapply( cts, function(cty) trans_prob( phi[[cty]], X[[cty]], 
-                                              eps[[cty]], Z[[cty]] ) )
-    # The transition probabilities
-T.vals <- lapply(cts, 
-                 function(cty) t( c( A.bar, g.bar[cty] ) * t(exp(Z[[cty]])) ) )
-    # Return to the level of the shocks (not logs)
-ergodic <- lapply( T.p, function(x) (x %^% 100)[1,] )
-    # The ergodic distribution
-plot( T.vals[[1]], cex = ergodic[[1]] * 40, main="Ergodic distribution",
-      xlim=range(sapply(T.vals, function(x) x[,1] ) ), col='red', lwd=2,
-      ylim=range(sapply(T.vals, function(x) x[,2] ) ), xlab='A', ylab='g' ) 
-points( T.vals[[2]], cex = ergodic[[2]] * 40, col='blue', lwd=2 ) 
-    # Plot the ergodic distribution
-for(cty in cts) heatmap(T.p[[cty]], Colv ="Rowv", main=cty )
-    # Heatmap of transition probabilities
-
-## 5. Simulate the discretized process and compare to the VAR ##
-mc.indiv <- lapply( cts, function(cty) 
-  new( "markovchain", byrow=TRUE, transitionMatrix=T.p[[cty]], name=cty ) )
-    # The markov chain object
-set.seed(1234)
-sim.indiv <- lapply( cts, function(cty)
-         T.vals[[cty]][as.numeric(rmarkovchain( n.sim, mc.indiv[[cty]], 
-                                                useRCpp=TRUE ) ), ] )
-for( cty in cts ) rownames(sim.indiv[[cty]]) <- NULL
-for( cty in cts ) colnames(sim.indiv[[cty]]) <- c('A', 'g') 
-    # Simulated series
-
-### 5.1 Time series plot ###
-n.pds <- nrow( real.alp.cycle )
-with( real.alp.cycle, plot( 1:n.pds, France, ylim=range(real.alp.cycle[,cts]), 
-                            col='blue', lwd=2, type='l', ylab='Log labor productivity (cycle)' ) )
-with( real.alp.cycle, lines( 1:n.pds, Germany, ylim=range(real.alp.cycle[,cts]), 
-                             col='red', lwd=2 ) )
-for( i in 1:2) 
-  lines( 1:n.pds, log( sim.indiv[[cts[i]]][1:n.pds,'A'] / A.bar ), lwd=2, lty=2, 
-         col=c('red','blue')[i] )
-abline( h=0, lwd=.5 )
-legend( 'bottomright', cts, lwd=2, col=c('red','blue'), bty='n' )
-    # Simulation
-n.pds <- nrow(real.g.cycle)
-with( real.g.cycle, plot( 1:n.pds, France, ylim=range(real.g.cycle[,cts]), 
-                            col='blue', lwd=2, type='l', ylab='Log labor productivity (cycle)' ) )
-with( real.g.cycle, lines( 1:n.pds, Germany, ylim=range(real.g.cycle[,cts]), 
-                             col='red', lwd=2 ) )
-for( i in 1:2) 
-  lines( 1:n.pds, log( sim.indiv[[cts[i]]][1:n.pds,'g'] / g.bar[i] ), lwd=2, lty=2, 
-         col=c('red','blue')[i] )
-abline( h=0, lwd=.5 )
-legend( 'bottomright', cts, lwd=2, col=c('red','blue'), bty='n' )
-
-cov.mc <- lapply( sim.indiv, function(x) var(log(x)) )
-    # simulated covariance
-
-var.mc <- lapply( sim.indiv, function(x) VAR( log( x ), type='none' ) )
-    # Create the VAR on the simulated data
-par(mfrow = c(1, 2))
-for( cty in cts ){
-  barplot( rbind( cov.A.g[[cty]][c(1,2,4)], 
-                  cov.mc[[cty]][c(1,2,4)] ), 
-           beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' covariances'),
-           legend.text=c( 'Data', 'Markov Chain \nSimulation' ),
-           args.legend =list(x='topleft', bty='n') )
-}
-for( cty in cts ){
-  barplot( rbind( c( sapply( var.A.g[[cty]]$varresult, function(x) x$coefficients ) ),
-                  c( sapply( var.mc[[cty]]$varresult, function(x) x$coefficients ) ) ), 
-           beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' VAR coefficients'),
-           legend.text=c('Data','Markov Chain \nSimulation'), 
-           args.legend =list(x='bottomleft', bty='n') ) 
-}
-par(mfrow = c(1, 1))
+# phi <- lapply( cts, function(cty) t( sapply( c('alp','g'),
+#                      function(vble) var.A.g[[cty]]$varresult[[vble]]$coefficients ) ) )
+#     # The matrix of auto-regressive coefficients
+# sig <- lapply( cts, function(cty) summary(var.A.g[[cty]])$covres )
+#     # The Covariance of the residuals
+# lam <- lapply( cts, function(cty) lyapunovEq( phi[[cty]], sig[[cty]] ) )
+#     # The covariance of the stationary distribution
+# X <- lapply( lam, function(x) rmvnorm( nn, sigma=x ) )
+# eps <- lapply( sig, function(x) rmvnorm( nn, sigma=x ) )
+#     # Random variables for integration
+# X.prime.e <- lapply( cts, function(cty) X[[cty]] %*% t(phi[[cty]]) )
+#     # Expected value of X prime
+# Z <- lapply( X, function(x) kmeans( x, n.Z )$centers )
+#     # The Z points
+# T.p <- lapply( cts, function(cty) trans_prob( phi[[cty]], X[[cty]], 
+#                                               eps[[cty]], Z[[cty]] ) )
+#     # The transition probabilities
+# T.vals <- lapply(cts, 
+#                  function(cty) t( c( A.bar, g.bar[cty] ) * t(exp(Z[[cty]])) ) )
+#     # Return to the level of the shocks (not logs)
+# ergodic <- lapply( T.p, function(x) (x %^% 100)[1,] )
+#     # The ergodic distribution
+# plot( T.vals[[1]], cex = ergodic[[1]] * 40, main="Ergodic distribution",
+#       xlim=range(sapply(T.vals, function(x) x[,1] ) ), col='red', lwd=2,
+#       ylim=range(sapply(T.vals, function(x) x[,2] ) ), xlab='A', ylab='g' ) 
+# points( T.vals[[2]], cex = ergodic[[2]] * 40, col='blue', lwd=2 ) 
+#     # Plot the ergodic distribution
+# for(cty in cts) heatmap(T.p[[cty]], Colv ="Rowv", main=cty )
+#     # Heatmap of transition probabilities
+# 
+# ## 5. Simulate the discretized process and compare to the VAR ##
+# mc.indiv <- lapply( cts, function(cty) 
+#   new( "markovchain", byrow=TRUE, transitionMatrix=T.p[[cty]], name=cty ) )
+#     # The markov chain object
+# set.seed(1234)
+# sim.indiv <- lapply( cts, function(cty)
+#          T.vals[[cty]][as.numeric(rmarkovchain( n.sim, mc.indiv[[cty]], 
+#                                                 useRCpp=TRUE ) ), ] )
+# for( cty in cts ) rownames(sim.indiv[[cty]]) <- NULL
+# for( cty in cts ) colnames(sim.indiv[[cty]]) <- c('A', 'g') 
+#     # Simulated series
+# 
+# ### 5.1 Time series plot ###
+# n.pds <- nrow( real.alp.cycle )
+# with( real.alp.cycle, plot( 1:n.pds, France, ylim=range(real.alp.cycle[,cts]), 
+#                             col='blue', lwd=2, type='l', ylab='Log labor productivity (cycle)' ) )
+# with( real.alp.cycle, lines( 1:n.pds, Germany, ylim=range(real.alp.cycle[,cts]), 
+#                              col='red', lwd=2 ) )
+# for( i in 1:2) 
+#   lines( 1:n.pds, log( sim.indiv[[cts[i]]][1:n.pds,'A'] / A.bar ), lwd=2, lty=2, 
+#          col=c('red','blue')[i] )
+# abline( h=0, lwd=.5 )
+# legend( 'bottomright', cts, lwd=2, col=c('red','blue'), bty='n' )
+#     # Simulation
+# n.pds <- nrow(real.g.cycle)
+# with( real.g.cycle, plot( 1:n.pds, France, ylim=range(real.g.cycle[,cts]), 
+#                             col='blue', lwd=2, type='l', ylab='Log labor productivity (cycle)' ) )
+# with( real.g.cycle, lines( 1:n.pds, Germany, ylim=range(real.g.cycle[,cts]), 
+#                              col='red', lwd=2 ) )
+# for( i in 1:2) 
+#   lines( 1:n.pds, log( sim.indiv[[cts[i]]][1:n.pds,'g'] / g.bar[i] ), lwd=2, lty=2, 
+#          col=c('red','blue')[i] )
+# abline( h=0, lwd=.5 )
+# legend( 'bottomright', cts, lwd=2, col=c('red','blue'), bty='n' )
+# 
+# cov.mc <- lapply( sim.indiv, function(x) var(log(x)) )
+#     # simulated covariance
+# 
+# var.mc <- lapply( sim.indiv, function(x) VAR( log( x ), type='none' ) )
+#     # Create the VAR on the simulated data
+# par(mfrow = c(1, 2))
+# for( cty in cts ){
+#   barplot( rbind( cov.A.g[[cty]][c(1,2,4)], 
+#                   cov.mc[[cty]][c(1,2,4)] ), 
+#            beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' covariances'),
+#            legend.text=c( 'Data', 'Markov Chain \nSimulation' ),
+#            args.legend =list(x='topleft', bty='n') )
+# }
+# for( cty in cts ){
+#   barplot( rbind( c( sapply( var.A.g[[cty]]$varresult, function(x) x$coefficients ) ),
+#                   c( sapply( var.mc[[cty]]$varresult, function(x) x$coefficients ) ) ), 
+#            beside=TRUE, col=c('blue', 'red'), main=paste0(cty, ' VAR coefficients'),
+#            legend.text=c('Data','Markov Chain \nSimulation'), 
+#            args.legend =list(x='bottomleft', bty='n') ) 
+# }
+# par(mfrow = c(1, 1))
 
 
 ## 6. Create the joint VAR ##
