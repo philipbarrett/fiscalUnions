@@ -38,7 +38,7 @@ function sim_am( as::AutarkySol, n::Int = 1_000_000, burn::Int = 10_000,
     out[i,5] = Rfn[ out[i,3], sIdx[i] ]         # Revenue
     out[i,6] = xfn[ out[i,3], sIdx[i] ]         # Leisure
     out[i,7] = out[i,5] - out[i,2]              # Surplus
-    out[i,8] = out[i,1] * ( 1 - out[i,7] )      # Output
+    out[i,8] = out[i,1] * ( 1 - out[i,6] )      # Output
     out[i,9] = out[i,8] - out[i,2]              # Consumption
   end
   return out[ (burn+1):end, : ]

@@ -133,8 +133,16 @@ function idxLoc( x::Float64, v::Vector )
   vn = maximum(v)
   n = length(v)
 
-  if ( x < v1 || x > vn )
-    error("x must be within the range of v")
+  if ( x < v1 )
+    println( "x = ", x )
+    println( "v1 = ", v1 )
+    error("x must be greater than v1")
+  end
+
+  if ( x > vn )
+    println( "x = ", x )
+    println( "vn = ", vn )
+    error("x must be less than vn")
   end
 
   if x == v1
@@ -260,25 +268,25 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
     return AutarkySol( am, Vprime, bprime, R, x, it, dist )
 end
 
-# function solve_am(am::AutarkyModel, am_init::AutarkyModel; tol=1e-6, maxiter=500 )
-#
-#     V, bprime, g = am_init.V, am_init.bprime, am_init.g
-#         # Initialize the output matrices
-#     Vprime = similar(V)
-#
-#     dist = 2*tol
-#     it = 0
-#
-#     while (tol < dist) && (it < maxiter)
-#       it += 1
-#       bellman_operator!( am, V, Vprime, bprime, g )
-#       dist = maxabs(V - Vprime) / mean( abs(V) )
-#       copy!(V, Vprime)
-#       mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
-#     end
-#     return AutarkySol( am, Vprime, bprime, g, it, dist )
-# end
-#
+function solve_am(am::AutarkyModel, am_init::AutarkySol; tol=1e-6, maxiter=500 )
+
+    V, bprime, R, x = am_init.V, am_init.bprime, am_init.R, am_init.x
+        # Initialize the output matrices
+    Vprime = similar(V)
+
+    dist = 2*tol
+    it = 0
+
+    while (tol < dist) && (it < maxiter)
+      it += 1
+      bellman_operator!( am, V, Vprime, bprime, R, x )
+      dist = maxabs(V - Vprime) / mean( abs(V) )
+      copy!(V, Vprime)
+      mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
+    end
+    return AutarkySol( am, Vprime, bprime, R, x, it, dist )
+end
+
 # #
 # # hh = AutarkyModel()
 # # kk = solve_am(hh)

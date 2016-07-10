@@ -48,7 +48,7 @@ n.Z <- 15         # Number of discretized single-country points
 n.Z.joint <- 30   # For the joint country process
 n.sim <- 2e6      # Simulation length for cross-check
 real.int.inf <- 'CPI'       # Can also use 'gdpdef'
-save.file <- '~/Dropbox/data/2016/fiscalUnions/taxCoeffs.rdata'
+save.file <- '~/Dropbox/data/2016/fiscalUnions/cal.rdata'
 
 
 ## 1. Controls
@@ -164,6 +164,32 @@ pop <- reshape( subset( pop.melt, Year >= y.min ), timevar='Country',
 rownames(pop) <- NULL
 names(pop)[ ncol(pop)-0:1] <- sapply( names(pop)[ ncol(pop)-0:1], function(x) substr(x,12,nchar(x)) )
     # Adjust the names
+
+### 2.8 Real interest rates ###
+df.int <- read_csv( int.file )
+names(df.int)[-1] <- c( 'Interest.France', 'Interest.Germany', 
+                        'CPI.France', 'gdpdef.France',
+                        'CPI.Germany', 'gdpdef.Germany' )
+df.int.a <- aggregate( df.int[,-1], list(format(df.int$DATE, '%Y' )), mean )
+names(df.int.a)[1] <- 'Year'
+    # Annual averages
+real.int <- data.frame( Year=df.int.a$Year, 
+                        sapply(cts, function(cty) 
+                          df.int.a[[paste0('Interest.', cty)]] - 
+                            df.int.a[[paste0( real.int.inf, '.', cty)]] ) )
+for( i in 1:ncol(real.int) ) real.int[,i] <- as.numeric( as.character( real.int[,i] ) )
+real.int <- subset( real.int, Year >= y.min )
+    # Realized real rates 
+
+### 2.9 Debt levels ###
+debt.gdp <- read_csv( debt.file )
+names( debt.gdp ) <- c( 'Year', 'France', 'Germany' )
+debt.gdp[ debt.gdp==0 ] <- NA
+debt.gdp$Year <- format( debt.gdp$Year, '%Y' )
+for( i in 1:ncol(debt.gdp) ) debt.gdp[,i] <- as.numeric(debt.gdp[,i])
+debt.gdp <- subset( debt.gdp, Year >= y.min )
+    # The debt/GDP ratios
+
 
 ## 3. Create single-country VARs
 
@@ -411,4 +437,29 @@ if(!all( g.bar.joint == g.bar.joint.chk ) ) warning( 'g.bar.joint check fails' )
     # Scaling
 T.vals.joint <- exp(Z) * ( rep(1,nrow(Z)) %*% t(c( A.bar.joint, g.bar.joint ) ) )
 
-## TO ADD: SCALING AND SAVING ###
+
+## 8. Interest rates ##
+rr <- mean(as.matrix(real.int[,cts])) / 100
+    # The average real interest rate
+r.diff <- real.int[,cts[1]] - real.int[,cts[2]]
+rr.diff.ave <- c( abs = mean(abs(r.diff)), mean=mean(r.diff), 
+                  median=median(r.diff) )
+    # The average difference in the real interest rate
+
+## 9. Debt levels ##
+mu.debt.t <- apply( debt.gdp[, cts], 2, mean, na.rm=TRUE )
+    # Mean debt
+if( 'Germany' %in% cts ){
+  other <- cts[ cts != 'Germany' ]
+  mu.debt.t['Germany'] <- mean( debt.gdp$Germany, na.rm=TRUE ) * mean( debt.gdp[, other ], na.rm=T ) / 
+    mean( debt.gdp[ !is.na( debt.gdp$Germany ), other ], na.rm=T )
+}
+
+
+### 10. Save the output ###
+save( T.p.joint, T.vals.joint, A.bar, g.bar, A.bar.joint, g.bar.joint, 
+      rr, n.Z, rho, file = save.file )
+
+
+
+
