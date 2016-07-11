@@ -11,7 +11,7 @@ include("../julia/dwl.jl")
 include("../julia/autarky.jl")
 include("../julia/autarkySim.jl")
 include("../julia/autarkyPlot.jl")
-# include("../julia/prs.jl")
+include("../julia/prs.jl")
 # include("../julia/prsSim.jl")
 
 ## 0.2 Libraries ##
@@ -53,38 +53,44 @@ trans = trans ./ ( sum(trans, 2) * ones( 1, nS ) )
 psi = 0.75
 nR = 50
 chi = [ 13.0 13.0 ]
-delta= [ 1.0005 1.001 ]
+delta= [ 1 1 ] # [.999875 .999875] # [ 1.000005 1.000015 ]
 nb = 120
 tol = 1e-5
-maxiter=140
+maxiter=150
     # Start with a coarse solution
 indiv_am = [ AutarkyModel( r=rr, delta=delta[i], psi=psi, chi=chi[i],
                 A=states[i][:,1], g=states[i][:,2], P=trans, nR=nR,
                 nb=nb ) for i in 1:2 ]
-# indiv_as = [ solve_am(indiv_am[i], tol=tol, maxiter=maxiter )
-#                 for i in 1:2 ]
-indiv_as = [ solve_am(indiv_am[i], indiv_as[i], tol=tol, maxiter=maxiter )
+indiv_as = [ solve_am(indiv_am[i], tol=tol, maxiter=maxiter )
                 for i in 1:2 ]
+# indiv_as = [ solve_am(indiv_am[i], indiv_as[i], tol=tol, maxiter=maxiter )
+#                 for i in 1:2 ]
 indiv_sim = [ sim_am(indiv_as[i]) for i in 1:2 ]
 
 sim_mu = hcat( [ mean( indiv_sim[i], 1 )' for i in 1:2 ]... )
 sim_sd = hcat( [ std( indiv_sim[i], 1 )' for i in 1:2 ]... )
 sim_sd_log_xyc = hcat( [ std( log( indiv_sim[i][:, [ 6, 8, 9 ] ] ), 1 )'
                     for i in 1:2 ]... )
-
-# play([sin(x) for x=0:0.03*pi:441])
-
-# gc_sd = [ sim_sd[i][4] for i in 1:2 ]
-# debt_mu = [ sim_mu[i][2] for i in 1:2 ]
+sim_cor = [ cor(indiv_sim[i]) for i in 1:2 ]
+sim_check = [ indiv_sim[i][:,2] - indiv_sim[i][:,5] -
+      indiv_sim[i][:,4] + ( 1 + indiv_am[i].r ) *
+      indiv_sim[i][:,3] for i in 1:2 ]
 #
+#
+# # play([sin(x) for x=0:0.03*pi:441])
+#
+# # gc_sd = [ sim_sd[i][4] for i in 1:2 ]
+# # debt_mu = [ sim_mu[i][2] for i in 1:2 ]
+# #
 # sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
 # grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]
 # grid_ok = all( sim_debt_max .< grid_debt_max )
-#
-# tax_sum::Vector = taxes_jt[:,1] + chi * taxes_jt[:,2]
-# prs_m = prsModel( r=rr, betta=betta[1], gam=gam, sig=sig[1], gbar=gbar,
-#                   nn=nn, T=tax_sum, P=trans_jt, lam=.5, chi=chi,
-#                   rho=rho, nb=nb )
+
+prs_m = prsModel( r=rr, delta=delta[1], psi=[ psi psi ], chi=[ chi chi ],
+                A=states_jt[:,1:2], g=states_jt[:,3:4], P=trans,
+                nR=[nR nR], rho=rho, lam=.5,
+                nb=nb )
+
 # prs_s = solve_pm( prs_m )
 # prs_sim = sim_pm( prs_s )
 #

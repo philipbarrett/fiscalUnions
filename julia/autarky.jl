@@ -181,8 +181,8 @@ function vbg_init( am::AutarkyModel )
 end
 
 """
-    bellman_operator!(am::AutarkyModel, V::Matrix,
-                      vOut::Matrix, bOut::Matrix, ROut::Matrix )
+    bellman_operator!(am::AutarkyModel, V::Matrix, vOut::Matrix,
+                      bOut::Matrix, ROut::Matrix, xOut::Matrix )
 Apply the Bellman operator for a given model and initial value.
 ##### Arguments
 - `am::AutarkyModel` : Instance of `AutarkyModel`
@@ -190,15 +190,16 @@ Apply the Bellman operator for a given model and initial value.
 - `vOut::Matrix` : Storage for output value function
 - `bOut::Matrix` : Storage for output policy function
 - `ROut::Matrix` : Storage for output policy function
+- `xOut::Matrix` : Storage for output leisure effort
 ##### Returns
-None: `vOut`, `bOut` and `gOut` are updated in place.
+None: `vOut`, `bOut`, `ROut` and `xOut` are updated in place.
 """
 function bellman_operator!(am::AutarkyModel, V::Matrix,
       vOut::Matrix, bOut::Matrix, ROut::Matrix, xOut::Matrix )
     # simplify names, set up arrays
   r, betta, delta, W, Rgrid, P, A, g, nS, nR =
-                    am.r, am.betta, am.delta, am.dw.W, am.dw.R, am.P,
-                    am.A, am.g, am.nS, am.dw.nR
+                    am.r, am.betta, am.delta, am.dw.W,
+                    am.dw.R, am.P, am.A, am.g, am.nS, am.dw.nR
   bgrid, nb = am.bgrid, am.nb
   bmin = minimum(bgrid)
   bmax = maximum(bgrid)
@@ -230,9 +231,11 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
     end
 
     opt_lb = max( bmin, (1+r) * thisb + g[iS] - Rgrid[iS, nR] )
-        # Debt cannot be so low that the government expenditure
-        # is below gbar
+        # Debt cannot be so low that the government revenue is above
+        # its max
     opt_ub = min( bmax, (1+r) * thisb + g[iS] - Rgrid[iS, 1] )
+        # Debt cannot be so high that the government revenue is below
+        # its min
 
     res = optimize(obj, opt_lb, opt_ub )
     bprime_star = res.minimum

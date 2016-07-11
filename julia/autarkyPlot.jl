@@ -40,7 +40,7 @@ function plot_as( as::AutarkySol, part::AbstractString="V" )
   if part == "x"
     y = as.x
   end
-      # Liesure
+      # Leisure
   plot_as( as.am.bgrid, y )
       # Plot
 end
@@ -60,7 +60,11 @@ function plot_sim( sim::Matrix, pds=1:100 )
       # Normalize debt by the variance of expenditures
   Gadfly.plot( [ layer( x=pds, y=y[:,i], Geom.line,
              Theme(default_color=color(parse(Colorant, color_vec[i]))) )
-             for i in 1:4 ]... )
+             for i in 1:4 ]..., Guide.xlabel("Period"),
+             Guide.ylabel("Log deviations from mean"),
+             Guide.manual_color_key("Variables",
+                ["A", "g", "b", "R" ],
+                color_vec) )
 
 end
 
