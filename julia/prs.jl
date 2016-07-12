@@ -6,14 +6,12 @@ Calculates the perfect risk sharing model =#
 
 using Interpolations, Optim
 
+include("dwl.jl")
+
 """
 Type defining PRS solution.  Contains:
   * r: Interest rate
   * betta: Discount factor
-  * gam: (Constant) growth rate of the economy
-  * sig: CRRA curvature coefficient
-  * gbar: Minimum required expenditure
-  * nn: Rate of population growth
   * P: Transition matrix for taxes
   * T: Vector of tax levels
   * lam: Pareto weight
@@ -25,24 +23,27 @@ type prsModel
   # Deep parameters
   r::Float64      # Interest rate
   betta::Float64  # Discount factor
-  gam::Float64    # Growth rate
-  sig::Float64    # CRRA parameter
-  gbar::Vector   # Non-discretionary spending
-  nn::Float64     # Rate of population growth
+  delta::Float64  # Extra government discount factor
+  psi::Vector{Float64}    # Frisch elasticity of labor supply
+  chi::Vector{Float64}    # Leisure utility scale parameter
 
-  # Tax process
-  P::Matrix       # Transition matrix
-  T::Vector       # Taxes: Need to sum with chi beforehand
-  nT::Int         # Number of Taxes
-
-  # Size parameters
-  lam::Float64    # Pareto weight on country 1
-  chi::Float64    # Relative income of country 2
-  rho::Float64    # Relative population of country 2
+  # Stochastic process
+  A::Matrix{Float64}      # Labor productivity
+  g::Matrix{Float64}      # Government spending
+  P::Matrix{Float64}      # Transition probabilities
+  nS::Int                 # Number of States
 
   # B grid
   bgrid::LinSpace # Debt grid
   nb::Int         # Length of b grid
+
+  # DWL object
+  dw::Array{DWL,1}        # Deadweight loss
+
+  # Size parameters
+  lam::Float64    # Pareto weight on country 1
+  rho::Float64    # Population of country 1 (cty 2 = 1-rho)
+
 end
 
 
@@ -50,21 +51,31 @@ end
     function prsModel(; r=0.04, betta=0.9, gam=0.02, T=-1, P=-1, nb=150, bmin=0)
 Computes the perfect risk sharing model and formats it as an autarkic model
 """
-function prsModel(; r=0.04, betta=0.9, gam=0.02, sig=1,
-                      gbar= .7 * ones(2), nn=0, T=-1, P=-1,
-                      lam=.5, chi=1, rho=1, nb=150, bmin=0)
-  if( T[1] < 0 || P[1] < 0 )
-    T1, P1 = defaultTaxes()
-    nT1 = length(T1)
-    P = kron(P1,P1)
-    T =  [ T1[i] + chi * T1[j] for i in 1:nT1, j in 1:nT1 ][:]
+function prsModel(; r=0.04, delta=0.95, psi=[0.75 .75], chi=[7 7], A=-1,
+                    g=-1, P=-1, lam=.5, nR=[20 20], rho=.5, nb=150, bmin=0)
+
+  if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
+    Atemp, gtemp, P = defaultStates()
+    A = hcat( Atemp, Atemp )
+    g = hcat( gtemp, gtemp )
   end
+  nS = size(A)[1]
+  vrho = [ rho 1-rho ]
+      # Vector of weights
 
-  bgrid = linspace( bmin, ( minimum(T) - gbar[1] - chi * gbar[2] )
-                        / ( r - gam ) * .975, nb )
+  dw =[ DWL( A=A[:,i], g=g[:,i], nR=nR[i], psi=psi[i],
+                chi=chi[i], r=r, rho=vrho[i] ) for i in 1:2 ]
+      # Deadwight loss object
 
-  return prsModel( r, betta, gam, sig, gbar, nn, P, T, length(T),
-                    lam, chi, rho, bgrid, nb )
+  blim = 1 / r * minimum( dw[1].R[:,nR[1]] - g[:,1] +
+                            dw[2].R[:,nR[2]] - g[:,2] )
+      # Maximum joint borrowing
+
+  bgrid = linspace( bmin, blim * .975, nb )
+
+  return prsModel( r, 1 / ( 1 +r ), delta, squeeze(psi, 1),
+                      squeeze(chi, 1), A, g, P, nS, bgrid,
+                      nb, dw, lam, rho )
 end
 
 """
@@ -80,8 +91,10 @@ type prsSol
   # The solution objects
   V::Matrix
   bprime::Matrix
-  g1::Matrix
-  g2::Matrix
+  R1::Matrix
+  R2::Matrix
+  x1::Matrix
+  x2::Matrix
 
   # Algorithm reports
   iter::Int
@@ -95,7 +108,7 @@ object that does linear interpolation in the asset dimension and has
 a lookup table in the z dimension
 """
 function Interpolations.interpolate(pm::prsModel, x::AbstractMatrix)
-  bt = (pm.nb, pm.nT)
+  bt = (pm.nb, pm.nS)
   if size(x) != bt
     msg = "x must have dimensions $(bt)"
     throw(DimensionMismatch(msg))
@@ -109,93 +122,150 @@ end
 Initialize the matrices for V, bprime, and g
 """
 function vbg_init( pm::prsModel )
-  rho, chi, gbar, lam, sig = pm.rho, pm.chi, pm.gbar, pm.lam, pm.sig[1]
+  rho, lam = pm.rho, pm.lam
       # Extract parameters.  Assume common sigma across the two countries
-  E = mean( pm.T )
-      # Expenditure
-  zet = ( lam / ( 1 - lam ) ) ^ ( - 1 / sig )
-      # Relative weight thing
-  g1 = ones( pm.nb, pm.nT ) * ( ( E - chi * gbar[2] + rho * zet * gbar[1] ) /
-                                ( 1 + rho * zet ) )
-  g2 = ( E - g1 ) / chi
-      # Government consumptions
-  bprime = ( ( 1 + pm.r ) * pm.bgrid * ones( 1, pm.nT ) + E -
-                ones( pm.nb, 1 ) * pm.T' )/ (1+gam)
-  pd1 = ( pm.sig == 1 ) ? log(g1-pm.gbar[1]) : (g1-pm.gbar[1]) .^ (1-pm.sig) ./ (1-pm.sig)
-  V = lam * ( 1 + (rho/chi) ^ ( 1 - sig ) * zet ) * pd1
-      # Period payoff from aggregate utillity function
-  return V, bprime, g1, g2
+  vrho = [ rho, 1-rho ]
+  vlam = [ lam, 1-lam ]
+  R1::Matrix{Float64} = rho * ones( pm.nb, pm.nS ) * mean( pm.g )
+  R2::Matrix{Float64} = ( 1 - rho ) * ones( pm.nb, pm.nS ) * mean( pm.g )
+      # Revenues
+  bprime::Matrix{Float64} = ( 1 + pm.r ) * pm.bgrid * ones( 1, pm.nS ) -
+            R1 - R2 + ones( pm.nb, 1 ) * sum( pm.g, 2 )'
+      # Continuation debt
+  bprime[bprime.<pm.bgrid[1]] = pm.bgrid[1]
+      # Remove anything that has snuck below the lower bound
+  wf = [ interpolate(pm.dw[i].W, (NoInterp(), BSpline(Linear())), OnGrid())
+            for i in 1:2 ]
+      # Loss functions
+  xf = [ interpolate(pm.dw[j].x[i], BSpline(Linear()), OnGrid())
+              for i in 1:pm.nS, j in 1:2 ]
+      # Interpolates the grid for x for each state
+  Ridx = [ idxLoc( vrho[j] * mean(pm.g), pm.dw[j].R'[:,i] )
+                        for i in 1:pm.nS, j in 1:2 ]
+          # Index of R in interpolation:
+  V::Matrix{Float64} = ones( pm.nb ) *
+                  ( [ wf[j][ i, Ridx[i] ] for i in 1:pm.nS, j in 1:2 ] *
+                    vlam )'
+      # Copy average value across the rows
+  x1::Matrix{Float64} = ones( pm.nb ) *
+              [ xf[i,1][ Ridx[i] ]::Float64 for i in 1:pm.nS ]'
+  x2::Matrix{Float64} = ones( pm.nb ) *
+              [ xf[i,2][ Ridx[i] ]::Float64 for i in 1:pm.nS ]'
+      # The associated x value
+  return V, bprime, R1, R2, x1, x2
 end
 
 """
     bellman_operator!(pm::prsModel, V::Matrix, vOut::Matrix,
-                      bOut::Matrix, g1Out::Matrix, g2Out::Matrix )
+                      bOut::Matrix, R1Out::Matrix, R2Out::Matrix,
+                      x1Out::Matrix, x2Out::Matrix )
 Apply the Bellman operator for a given model and initial value.
 ##### Arguments
-- `pm::prsModel` : Instance of `prsModel`
-- `v::Matrix`: Current guess for the value function
+- `am::AutarkyModel` : Instance of `AutarkyModel`
+- `V::Matrix`: Current guess for the value function
 - `vOut::Matrix` : Storage for output value function
 - `bOut::Matrix` : Storage for output policy function
-- `g1Out::Matrix` : Storage for output policy function
-- `g2Out::Matrix` : Storage for output policy function
+- `R1Out::Matrix` : Storage for output policy function
+- `R2Out::Matrix` : Storage for output policy function
+- `x1Out::Matrix` : Storage for output leisure effort
+- `x2Out::Matrix` : Storage for output leisure effort
 ##### Returns
-None: `vOut`, `bOut`, `g1Out` and `g2Out` are updated in place.
+None: `vOut`, `bOut`, `ROut` and `xOut` are updated in place.
 """
-function bellman_operator!(pm::prsModel, V::Matrix, vOut::Matrix,
-                        bOut::Matrix, g1Out::Matrix, g2Out::Matrix )
+function bellman_operator!(pm::prsModel, V::Matrix,
+      vOut::Matrix, bOut::Matrix, R1Out::Matrix, R2Out::Matrix,
+      x1Out::Matrix, x2Out::Matrix )
     # simplify names, set up arrays
-  r, betta, gam, sig, gbar, P, T, nT, lam =
-      pm.r, pm.betta, pm.gam, pm.sig, pm.gbar, pm.P, pm.T, pm.nT, pm.lam
+  r, betta, delta, P, A, g, nS, lam =
+            pm.r, pm.betta, pm.delta, pm.P, pm.A, pm.g, pm.nS, pm.lam
+  W = [ pm.dw[i].W for i in 1:2 ]
+  Rgrid = [ pm.dw[i].R for i in 1:2 ]
+  RR = [ pm.dw[i].R' for i in 1:2 ]
+  nR = [ pm.dw[i].nR for i in 1:2 ]
   bgrid, nb = pm.bgrid, pm.nb
   bmin = minimum(bgrid)
   bmax = maximum(bgrid)
 
-  T_idx = 1:length(T)
+  s_idx = 1:size(A)[1]
   vf = interpolate(pm, V)
-
-  zet = ( lam / ( 1 - lam ) ) ^ ( - 1 / sig )
-      # Scaled Pareto weight
+  wf = [ interpolate(W[i], (NoInterp(), BSpline(Linear())), OnGrid()) for i in 1:2 ]
+  xf = [ interpolate(pm.dw[j].x[i], BSpline(Linear()), OnGrid())
+                    for i in 1:nS, j in 1:2 ]
 
   # solve for RHS of Bellman equation
-  for (iT, thisT) in enumerate(T), (ib, thisb) in enumerate(bgrid)
+  for iS in s_idx, (ib, thisb) in enumerate(bgrid)
 
-    betta_hat = betta * ( (1+gam) / (1+nn) ) ^ (1-sig)
+    betta_hat = betta * delta
         # Effective discount rate
-    function obj(bprime)
-      cont = 0.0
-      for j in T_idx
-          cont += vf[bprime, j] * P[iT, j]
+
+    opt_lb = max( bmin, (1+r) * thisb + sum(g[iS,:]) -
+                Rgrid[1][iS, nR[1]] - Rgrid[2][iS, nR[2]] )
+        # Debt cannot be so low that the government revenue is above
+        # its max
+    opt_ub = min( bmax, (1+r) * thisb + sum(g[iS,:]) -
+                Rgrid[1][iS, 1] - Rgrid[2][iS, 1] )
+        # Debt cannot be so high that the government revenue is below
+        # its min
+
+    function obj(x::Vector)
+
+      bprime, R1 = x[1], x[2]
+          # Extract from the vector
+      R2 = sum(g[iS,:]) + ( 1 + r ) * thisb - bprime - R1
+          # Required revenue
+
+      if ( bprime < opt_lb )
+        return - 1e5 * ( bprime - opt_lb )
       end
-      E = thisT + (1+gam) * bprime - (1+r)*thisb
-          # Gov expenditure
-      g1 = ( E - chi * gbar[2] + rho * zet * gbar[1] ) /
-                                    ( 1 + rho * zet )
-          # Gov cons in cty 1
-      u1 = ( sig == 1 ) ? log(g1-gbar[1]) : (g1-gbar[1]) ^ (1-sig) / (1-sig)
-          # Period utility
-      util = lam * ( 1 + (rho/chi) ^ ( 1 - sig ) * zet ) * u1
-          # Aggregate utility
-      return -( (1-betta_hat)*util + betta_hat * cont )
+      if ( bprime > opt_ub )
+        return 1e5 * ( bprime - opt_lb )
+      end
+      if ( R1 < Rgrid[1][iS, 1] )
+        return - 1e5 * ( R1 - Rgrid[1][iS, 1] )
+      end
+      if ( R1 > Rgrid[1][iS, nR[1]] )
+        return 1e5 * ( R1 - Rgrid[1][iS, nR[1]] )
+      end
+      if ( R2 < Rgrid[2][iS, 1] )
+        return - 1e5 * ( R2 - Rgrid[2][iS, 1] )
+      end
+      if ( R2 > Rgrid[2][iS, nR[2]] )
+        return 1e5 * ( R2 - Rgrid[2][iS, nR[2]] )
+      end
+          # Enforce the bounds
+
+      cont = 0.0
+      for j in s_idx
+        # println( "vf[bprime, j] = ", vf[bprime, j] )
+        cont += vf[bprime, j] * P[iS, j]
+      end
+
+      R1idx = idxLoc( R1, RR[1][:,iS] )
+      R2idx = idxLoc( R2, RR[2][:,iS] )
+          # Fractional index of revenue
+      loss = lam * wf[1][ iS, R1idx ] + ( 1 - lam ) * wf[2][ iS, R2idx ]
+          # Period deadweight loss
+      return ( 1 - betta_hat ) * loss + betta_hat * cont
     end
 
-    opt_lb = ( (1+r) * thisb - thisT + gbar[1] + chi * gbar[2] ) / ( 1 + gam )
-        # Debt cannot be so low that the government expenditure
-        # is below gbar
-
-    # println("iT", "=", iT )
+    println("iS, ib", "=", iS, ", ", ib )
     # println("thisT", "=", thisT )
     # println("opt_lb", "=", opt_lb )
     # println("bmax", "=", bmax, "\n" )
+# println("Derp?")
+    # f0 = obj([bOut[ib, iS], R1Out[ib, iS]])
+    # println( "f0 = " , f0 )
 
-    res = optimize(obj, opt_lb, bmax + 1e-7 )
-    bprime_star = res.minimum
+    res = optimize(obj, [bOut[ib, iS], R1Out[ib, iS]], #opt_lb, opt_ub,
+                    method = GradientDescent() ) # )
+    x_star = res.minimum
 
-    vOut[ib, iT] = - obj(bprime_star)
-    bOut[ib, iT] = bprime_star
-    E_star = thisT + (1+gam) * bprime_star - (1+r) * thisb
-    g1Out[ib, iT] = ( E_star - chi * gbar[2] + rho * zet * gbar[1] ) /
-                                  ( 1 + rho * zet )
-    g2Out[ib, iT] = ( E_star - g1Out[ib, iT] ) / chi
+    vOut[ib, iS] = obj(x_star)
+    bOut[ib, iS] = x_star[1]
+    R1Out[ib, iS] = x_star[2]
+    R2Out[ib, iS] = sum(g[iS,:]) + ( 1 + r ) * thisb - sum(x_star)
+    x1Out[ib, iS] = xf[iS,1][R1Out[ib, iS]]
+    x1Out[ib, iS] = xf[iS,2][R2Out[ib, iS]]
   end
   return nothing
 end

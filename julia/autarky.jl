@@ -91,6 +91,7 @@ type AutarkySol
   V::Matrix
   bprime::Matrix
   R::Matrix
+  x::Matrix
 
   # Algorithm reports
   iter::Int
@@ -101,8 +102,8 @@ end
     AutarkySol( am, V, bprime, g, iter, dist )
 Constructor for the autarky solution object
 """
-function AutarkySol( am, V, bprime, R, iter, dist )
-  return AutarkySol( am, V, bprime, R, iter, dist )
+function AutarkySol( am, V, bprime, R, x, iter, dist )
+  return AutarkySol( am, V, bprime, R, x, iter, dist )
 end
 
 """
@@ -132,8 +133,16 @@ function idxLoc( x::Float64, v::Vector )
   vn = maximum(v)
   n = length(v)
 
-  if ( x < v1 || x > vn )
-    error("x must be within the range of v")
+  if ( x < v1 )
+    println( "x = ", x )
+    println( "v1 = ", v1 )
+    error("x must be greater than v1")
+  end
+
+  if ( x > vn )
+    println( "x = ", x )
+    println( "vn = ", vn )
+    error("x must be less than vn")
   end
 
   if x == v1
@@ -158,16 +167,22 @@ function vbg_init( am::AutarkyModel )
                 ones( am.nb, 1 ) * am.g'
   bprime[bprime.<am.bgrid[1]] = am.bgrid[1]
   wf = interpolate(am.dw.W, (NoInterp(), BSpline(Linear())), OnGrid())
+  xf = [ interpolate(am.dw.x[i], BSpline(Linear()), OnGrid()) for i in 1:am.nS ]
+      # W and x interpolation functions
   Ridx = [ idxLoc( mean(am.g), am.dw.R'[:,i] ) for i in 1:am.nS ]
       # Index of R in interpolation:
-  V::Matrix{Float64} = ones( am.nb ) * [ wf[ i, Ridx[i] ] for i in 1:am.nS ]'
-      # Copy average vaule across the rows
-  return V, bprime, R
+  V::Matrix{Float64} = ones( am.nb ) *
+              [ wf[ i, Ridx[i] ] for i in 1:am.nS ]'
+      # Copy average value across the rows
+  x::Matrix{Float64} = ones( am.nb ) *
+              [ xf[i][ Ridx[i] ]::Float64 for i in 1:am.nS ]'
+      # The associated x value
+  return V, bprime, R, x
 end
 
 """
-    bellman_operator!(am::AutarkyModel, V::Matrix,
-                      vOut::Matrix, bOut::Matrix, ROut::Matrix )
+    bellman_operator!(am::AutarkyModel, V::Matrix, vOut::Matrix,
+                      bOut::Matrix, ROut::Matrix, xOut::Matrix )
 Apply the Bellman operator for a given model and initial value.
 ##### Arguments
 - `am::AutarkyModel` : Instance of `AutarkyModel`
@@ -175,15 +190,16 @@ Apply the Bellman operator for a given model and initial value.
 - `vOut::Matrix` : Storage for output value function
 - `bOut::Matrix` : Storage for output policy function
 - `ROut::Matrix` : Storage for output policy function
+- `xOut::Matrix` : Storage for output leisure effort
 ##### Returns
-None: `vOut`, `bOut` and `gOut` are updated in place.
+None: `vOut`, `bOut`, `ROut` and `xOut` are updated in place.
 """
 function bellman_operator!(am::AutarkyModel, V::Matrix,
-                  vOut::Matrix, bOut::Matrix, ROut::Matrix )
+      vOut::Matrix, bOut::Matrix, ROut::Matrix, xOut::Matrix )
     # simplify names, set up arrays
   r, betta, delta, W, Rgrid, P, A, g, nS, nR =
-                    am.r, am.betta, am.delta, am.dw.W, am.dw.R, am.P,
-                    am.A, am.g, am.nS, am.dw.nR
+                    am.r, am.betta, am.delta, am.dw.W,
+                    am.dw.R, am.P, am.A, am.g, am.nS, am.dw.nR
   bgrid, nb = am.bgrid, am.nb
   bmin = minimum(bgrid)
   bmax = maximum(bgrid)
@@ -191,6 +207,8 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
   s_idx = 1:length(A)
   vf = interpolate(am, V)
   wf = interpolate(W, (NoInterp(), BSpline(Linear())), OnGrid())
+  xf = [ interpolate(am.dw.x[i], BSpline(Linear()), OnGrid())
+                    for i in 1:nS ]
   RR = Rgrid'
 
   # solve for RHS of Bellman equation
@@ -213,9 +231,11 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
     end
 
     opt_lb = max( bmin, (1+r) * thisb + g[iS] - Rgrid[iS, nR] )
-        # Debt cannot be so low that the government expenditure
-        # is below gbar
+        # Debt cannot be so low that the government revenue is above
+        # its max
     opt_ub = min( bmax, (1+r) * thisb + g[iS] - Rgrid[iS, 1] )
+        # Debt cannot be so high that the government revenue is below
+        # its min
 
     res = optimize(obj, opt_lb, opt_ub )
     bprime_star = res.minimum
@@ -223,6 +243,7 @@ function bellman_operator!(am::AutarkyModel, V::Matrix,
     vOut[ib, iS] = obj(bprime_star)
     bOut[ib, iS] = bprime_star
     ROut[ib, iS] = g[iS] + ( 1 + r ) * thisb - bprime_star
+    xOut[ib, iS] = xf[iS][ROut[ib, iS]]
   end
   return nothing
 end
@@ -233,7 +254,7 @@ Solves the autarky model using value function iteration
 """
 function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
 
-    V, bprime, R = vbg_init(am)
+    V, bprime, R, x = vbg_init(am)
         # Initialize the output matrices
     Vprime = similar(V)
 
@@ -242,33 +263,33 @@ function solve_am(am::AutarkyModel; tol=1e-6, maxiter=500 )
 
     while (tol < dist) && (it < maxiter)
       it += 1
-      bellman_operator!( am, V, Vprime, bprime, R )
+      bellman_operator!( am, V, Vprime, bprime, R, x )
       dist = maxabs(V - Vprime) / mean( abs(V) )
       copy!(V, Vprime)
       mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
     end
-    return AutarkySol( am, Vprime, bprime, R, it, dist )
+    return AutarkySol( am, Vprime, bprime, R, x, it, dist )
 end
 
-# function solve_am(am::AutarkyModel, am_init::AutarkyModel; tol=1e-6, maxiter=500 )
-#
-#     V, bprime, g = am_init.V, am_init.bprime, am_init.g
-#         # Initialize the output matrices
-#     Vprime = similar(V)
-#
-#     dist = 2*tol
-#     it = 0
-#
-#     while (tol < dist) && (it < maxiter)
-#       it += 1
-#       bellman_operator!( am, V, Vprime, bprime, g )
-#       dist = maxabs(V - Vprime) / mean( abs(V) )
-#       copy!(V, Vprime)
-#       mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
-#     end
-#     return AutarkySol( am, Vprime, bprime, g, it, dist )
-# end
-#
+function solve_am(am::AutarkyModel, am_init::AutarkySol; tol=1e-6, maxiter=500 )
+
+    V, bprime, R, x = am_init.V, am_init.bprime, am_init.R, am_init.x
+        # Initialize the output matrices
+    Vprime = similar(V)
+
+    dist = 2*tol
+    it = 0
+
+    while (tol < dist) && (it < maxiter)
+      it += 1
+      bellman_operator!( am, V, Vprime, bprime, R, x )
+      dist = maxabs(V - Vprime) / mean( abs(V) )
+      copy!(V, Vprime)
+      mod(it, 10) == 0 ? println(it, "\t", dist) : nothing
+    end
+    return AutarkySol( am, Vprime, bprime, R, x, it, dist )
+end
+
 # #
 # # hh = AutarkyModel()
 # # kk = solve_am(hh)
