@@ -29,8 +29,8 @@ function plot_as( as::AutarkySol, part::AbstractString="V" )
     y = as.V
   end
       # Value function
-  if part == "g"
-    y = as.g
+  if part == "R"
+    y = as.R
   end
       # Government consumption
   if part == "b"
