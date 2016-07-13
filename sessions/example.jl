@@ -20,7 +20,7 @@ P = [ .4 .2 .2 .2
       .2 .4 .2 .2
       .2 .2 .4 .2
       .2 .2 .2 .4 ]
-nR = 20
+nR = 10
 psi = .75
 chi = 7.0
 nb=10
@@ -54,12 +54,20 @@ init, ndirs = initGame(fg)
 polyPlot(init[:,1])
 
 betta_hat = fg.betta * fg.delta
-thisndirs = 8
+thisndirs = 20
 dirs = hcat( [ cos(2*pi*(i-1)/thisndirs)::Float64 for i in 1:thisndirs ],
              [ sin(2*pi*(i-1)/thisndirs)::Float64 for i in 1:thisndirs ] )
+
 ff = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
+                         r, fg.bgrid, init, vec(P[2,:]), betta_hat,
+                         dirs )
+    # Compilation stage
+Profile.clear()
+@profile ff = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
                         r, fg.bgrid, init, vec(P[2,:]), betta_hat,
                         dirs )
+Profile.print()
+
 gg = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
                         r, fg.bgrid, init, vec(P[2,:]), betta_hat,
                         dirs, false )
@@ -67,41 +75,50 @@ polyPlot([ff, gg])
 
 hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
                   r, fg.bgrid, init, vec(P[1,:]), betta_hat, dirs )
-# is = 1
-# ib = 10
+iS = 1
+ib = 10
 # for k in find(fg.potFeas[is,ib])
 #   println( "k=", k )
 #   jj = uncSetUpdate( fg.surp[k,is], vec(fg.pdLoss[k,:,is]), fg.bgrid[ib],
 #                                     fg.r, fg.bgrid, init, vec(fg.P[is,:]),
 #                                     betta_hat, fg.dirs )
 # end
-# kk = [ uncSetUpdate( fg.surp[k,is], vec(fg.pdLoss[k,:,is]), fg.bgrid[ib],
-#                                   fg.r, fg.bgrid, init, vec(fg.P[is,:]), betta_hat,
-#                                   fg.dirs )::Polygon
-#                       for k in find(fg.potFeas[is,ib]) ]
 
+Profile.clear()
+@profile kk = [ uncSetUpdate( fg.surp[k,is], vec(fg.pdLoss[k,:,is]), fg.bgrid[ib],
+                                  fg.r, fg.bgrid, init, vec(fg.P[is,:]), betta_hat,
+                                  dirs )::Polygon
+                      for k in find(fg.potFeas[iS,ib]) ]
+Profile.print()
 
 # W = uncSetUpdate( fg, init, ndirs )
 W = init
-
-for it in 1:5
-  println("*** it = ", it , " ***")
-  W_new = uncSetUpdate( fg, W, ndirs )
-  hd = hausdorff( W, W_new )
-  println("   ** mean & max hausdorff dist = ", ( mean(hd), maximum(hd) ), "**" )
-  W = copy(W_new)
-  ndirs = ndirsUpdate( ndirs, hd, fg.hddirs, fg.ndirsu )
-  println("   ** mean # search dirs = ", mean(ndirs), "**" )
-  println("   ** extremal # search dirs = ", extrema(ndirs), "**\n" )
-end
+# W_new = uncSetUpdate( fg, W, ndirs )
+#     # Triggers compilation
+#   # in case we have any previous profiling data
+# @profile W_new = uncSetUpdate( fg, W, ndirs )
+# using ProfileView
+# ProfileView.view()
 
 
+# for it in 1:5
+#   println("*** it = ", it , " ***")
+#   W_new = uncSetUpdate( fg, W, ndirs )
+#   hd = hausdorff( W, W_new )
+#   println("   ** mean & max hausdorff dist = ", ( mean(hd), maximum(hd) ), "**" )
+#   W = copy(W_new)
+#   ndirs = ndirsUpdate( ndirs, hd, fg.hddirs, fg.ndirsu )
+#   println("   ** mean # search dirs = ", mean(ndirs), "**" )
+#   println("   ** extremal # search dirs = ", extrema(ndirs), "**\n" )
+# end
 
 
-jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
-    addrequire(file, Polygons)
-    write(file, "W", W)
-end
+
+
+# jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
+#     addrequire(file, Polygons)
+#     write(file, "W", W)
+# end
 
 # Can then acecss W with:
 # d = load("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld")
