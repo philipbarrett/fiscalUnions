@@ -4,10 +4,10 @@ A_jt = [ 2.95 2.95
          3.05 3.05
          3.05 2.95
          2.95 3.05 ]
-g_jt = [ .205  .21
-         .215  .21
-         .21   .205
-         .21   .215 ]
+g_jt = [ .21   .21
+         .21   .21
+         .215   .205
+         .205   .215 ]
 P = [ .4 .2 .2 .2
       .2 .4 .2 .2
       .2 .2 .4 .2
@@ -56,15 +56,24 @@ polyPlot([ff, gg])
 
 hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
                   r, fg.bgrid, init, vec(P[1,:]), betta_hat, fg.dirs )
-kk = [ uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[1],
-                                  fg.r, fg.bgrid, init, vec(fg.P[1,:]), betta_hat,
-                                  fg.dirs )
-                      for k in find(fg.potFeas[1,1]) ]
-for k in find(fg.potFeas[1,8])
-  println( "k=", k )
-  jj = uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[8],
-                                    fg.r, fg.bgrid, init, vec(fg.P[1,:]),
-                                    betta_hat, fg.dirs )
-end
+# is = 1
+# ib = 10
+# for k in find(fg.potFeas[is,ib])
+#   println( "k=", k )
+#   jj = uncSetUpdate( fg.surp[k,is], vec(fg.pdLoss[k,:,is]), fg.bgrid[ib],
+#                                     fg.r, fg.bgrid, init, vec(fg.P[is,:]),
+#                                     betta_hat, fg.dirs )
+# end
+# kk = [ uncSetUpdate( fg.surp[k,is], vec(fg.pdLoss[k,:,is]), fg.bgrid[ib],
+#                                   fg.r, fg.bgrid, init, vec(fg.P[is,:]), betta_hat,
+#                                   fg.dirs )::Polygon
+#                       for k in find(fg.potFeas[is,ib]) ]
+
 
 W = uncSetUpdate( fg, init )
+
+for it in 1:10
+  println("*** it = ", it , " ***")
+  W_new = uncSetUpdate( fg, W )
+  W = copy(W_new)
+end

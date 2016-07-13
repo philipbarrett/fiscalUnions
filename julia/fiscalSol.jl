@@ -44,13 +44,13 @@ end
 
 """
     uncSetUpdate( surp::Float64, pdloss::Float64, b::Float64, r::Float64,
-                    bgrid::LinSpace,  W::Array{Polygon,2}, P::Vector{Float64} )
+                    bgrid::LinSpace,  W::Array{Polygon,2}, Q::Vector{Float64} )
 Updates a particular polygon without any incentive-compatibility constraints for
-a given surplus and period loss function.  Here P is a vector of transition
+a given surplus and period loss function.  Here Q is a vector of transition
 probabilities for the *given* exogenous state
 """
 function uncSetUpdate( surp::Float64, pdLoss::Vector{Float64}, b::Float64,
-                        r::Float64, bgrid::LinSpace, W::Array{Polygon,2}, P::Vector{Float64}, betta_hat::Vector{Float64},
+                        r::Float64, bgrid::LinSpace, W::Array{Polygon,2}, Q::Vector{Float64}, betta_hat::Vector{Float64},
                         dirs::Matrix{Float64}, outer::Bool=true )
 ## TODO: Add handling of empty sets
 
@@ -63,15 +63,19 @@ function uncSetUpdate( surp::Float64, pdLoss::Vector{Float64}, b::Float64,
 # println("  nl=", nl)
 # println("  nu=", nu)
 
-  idx = (P .> 0)
+  idx = (Q .> 0)
       # Because weighted sum does not play well with zero polygons
-  wContl = weightedSum( W[idx,nl], P[idx], dirs, outer )
-  wContu = weightedSum( W[idx,nu], P[idx], dirs, outer )
+  wContl = weightedSum( W[idx,nl], Q[idx], dirs, outer )
+  wContu = weightedSum( W[idx,nu], Q[idx], dirs, outer )
       # The bounding debt continuation value sets
-  # return wContl, wContu, pl
-
-  wCont = weightedSum( [ wContl, wContu ], [pl, 1-pl], dirs, outer )
-      # The continuation value set
+  if ( pl == 0 )
+    wCont = wContu
+  elseif ( pl == 1 )
+    wCont = wContl
+  else
+    wCont = weightedSum( [ wContl, wContu ], [pl, 1-pl], dirs, outer )
+  end
+      # The continuation value set: Need exceptions when pl is 0 or 1
 
   return ( ( 1 - betta_hat ) .* pdLoss ) + betta_hat .* wCont
 end

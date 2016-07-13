@@ -76,7 +76,7 @@ function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
   blim = 1 / r * minimum( dw[1].R[:,nR] - g[:,1] +
                             dw[2].R[:,nR] - g[:,2] )
       # Maximum joint borrowing
-  bgrid = linspace( bmin, blim * .975, nb )
+  bgrid = linspace( bmin, blim, nb )
 
   actions = zeros( nR ^ 2, 2, nS )
   pdLoss =  zeros( nR ^ 2, 2, nS )
@@ -95,7 +95,7 @@ function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
       # Sums of revenue and expenditure
   surp = [ revSum[i,j] - gSum[j] for i in 1:(nR^2), j in 1:nS ]
       # Primary surplus
-  feas = [ (bmin .< (1+r) * bgrid[j] - surp[:,i] .< blim)::BitArray{1}
+  feas = [ (bmin .<= (1+r) * bgrid[j] - surp[:,i] .<= blim)::BitArray{1}
                 for i in 1:nS, j in 1:nb ]
       # Indices of potentially feasible actions
 
