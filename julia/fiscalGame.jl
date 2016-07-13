@@ -16,7 +16,7 @@ Type defining the fiscal game.  Contains:
   * T: Vector of tax levels
   * bgrid: The linspace grid of values for the debt
 """
-type fiscalGame
+type FiscalGame
 
   # Deep parameters
   r::Float64      # Interest rate
@@ -39,16 +39,24 @@ type fiscalGame
   dw::Vector{DWL}         # Deadweight loss
 
   # Game formulation
-  nR::Int                    # Number of actions
-  actions::Array{Float64,3}  # Matrix of action pairs (nR^2x2xnS)
-  pdLoss::Array{Float64,3}   # Matrix of payoff pairs (nR^2x2xnS)
+  nR::Int                     # Number of actions
+  actions::Array{Float64,3}   # Matrix of action pairs (nR^2x2xnS)
+  pdLoss::Array{Float64,3}    # Matrix of payoff pairs (nR^2x2xnS)
   surp::Matrix{Float64}       # Vector of primary defecits (nR^2xnS)
+
+  # Useful summations
+  revSum::Matrix{Float64}     # Joint revenue (nR^2xnS)
+  gSum::Vector{Float64}       # Joint expenditure (nS)
+
+  # Array of potentially feasible actions
+  potFeas::Array{BitArray{1},2}
+          # true if action respects debt bounds (nSxnb)(nR)
 
   # Algorithm details
   dirs::Matrix{Float64}        # Search objects (nDx2)
 end
 
-function fiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
+function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
                       rho=.5, A=-1, g=-1, P=-1, nR::Int=20, nb=150,
                       bmin=0, ndirs=32 )
 
@@ -82,12 +90,27 @@ function fiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
     end
   end
 
-  surp = [ sum( actions[i,:,j] ) - sum( g[j,:] ) for i in 1:(nR^2),
-                                                          j in 1:nS ]
-      # Primary defecits
-  dirs = hcat( [ cos((i-1)/(ndirs-1)) for i in 1:ndirs ],
-               [ sin((i-1)/(ndirs-1)) for i in 1:ndirs ] )
+  revSum = [ sum( actions[i,:,j] )::Float64 for i in 1:(nR^2), j in 1:nS ]
+  gSum = vec( sum( g, 2 ) )
+      # Sums of revenue and expenditure
+  surp = [ revSum[i,j] - gSum[j] for i in 1:(nR^2), j in 1:nS ]
+      # Primary surplus
+  feas = [ (bmin .< (1+r) * bgrid[j] - surp[:,i] .< blim)::BitArray{1}
+                for i in 1:nS, j in 1:nb ]
+      # Indices of potentially feasible actions
 
-  fiscalGame( r, 1/(1+r), delta, psi, chi, A, g, P, nS, bgrid, nb,
-              dw, nR, actions, pdLoss, surp, dirs )
+  dirs = hcat( [ cos(2*pi*(i-1)/ndirs) for i in 1:ndirs ],
+               [ sin(2*pi*(i-1)/ndirs) for i in 1:ndirs ] )
+
+  FiscalGame( r, 1/(1+r), delta, psi, chi, A, g, P, nS, bgrid, nb,
+              dw, nR, actions, pdLoss, surp, revSum, gSum, feas, dirs )
+end
+
+function initGame( fg::FiscalGame )
+  polys = [ Polygon( pts=fg.pdLoss[:,:,i] )::Polygon for i in 1:fg.nS ]
+      # Set up the polygons for the initial value.  Need to enforce polygon type
+      # to make tsure that the array is not of the "Any" type (needed for plots)
+  return [ polys[i] for i in 1:fg.nS, j in 1:fg.nb ]
+      # The constant period payoff polygon.  Depends only on the exog state,
+      # not the debt level
 end

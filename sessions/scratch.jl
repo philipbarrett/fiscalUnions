@@ -22,28 +22,51 @@ r = .03
 delta= 1.0
 
 
-dw = DWL( A=A, g=g, nR=nR, psi=psi, chi=chi, r=r )
-am = AutarkyModel( r=r, delta=delta, psi=psi, chi=chi, nR=nR )
+# dw = DWL( A=A, g=g, nR=nR, psi=psi, chi=chi, r=r )
+# am = AutarkyModel( r=r, delta=delta, psi=psi, chi=chi, nR=nR )
+#
+# DWLplot( am.dw, "tR" )
+# DWLplot( am.dw, "RW" )
+# DWLplot( am.dw, "xR" )
+#
+# V, bprime, R, x = vbg_init( am )
+# vOut = copy(V)
+# bellman_operator!(am, V,vOut, bprime, R, x )
+#
+# as = solve_am(am, tol=1e-5, maxiter=200 )
+# asim = sim_am(as)
+#
+# pm = prsModel( r=r, delta=delta, psi=[ psi psi ], chi=[ chi chi ],
+#                 A=A_jt, g=g_jt, P=P, nR=[nR nR], rho=.5, lam=.5 )
+# V, bprime, R1, R2, x1, x2 = vbg_init( pm )
+# vOut = copy(V)
+# bellman_operator!(pm, V,vOut, bprime, R1, R2, x1, x2 )
 
-DWLplot( am.dw, "tR" )
-DWLplot( am.dw, "RW" )
-DWLplot( am.dw, "xR" )
+fg = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
+                A=A_jt, g=g_jt, P=P, nR=nR, rho=.5 )
+init = initGame(fg)
+polyPlot(init[:,1])
 
-V, bprime, R, x = vbg_init( am )
-vOut = copy(V)
-bellman_operator!(am, V,vOut, bprime, R, x )
+betta_hat = fg.betta * fg.delta
+ff = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
+                        r, fg.bgrid, init, vec(P[2,:]), betta_hat,
+                        fg.dirs )
+gg = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
+                        r, fg.bgrid, init, vec(P[2,:]), betta_hat,
+                        fg.dirs, false )
+polyPlot([ff, gg])
 
-as = solve_am(am, tol=1e-5, maxiter=200 )
-asim = sim_am(as)
+hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
+                  r, fg.bgrid, init, vec(P[1,:]), betta_hat, fg.dirs )
+kk = [ uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[1],
+                                  fg.r, fg.bgrid, init, vec(fg.P[1,:]), betta_hat,
+                                  fg.dirs )
+                      for k in find(fg.potFeas[1,1]) ]
+for k in find(fg.potFeas[1,1])
+  println( "k=", k )
+  jj = uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[1],
+                                    fg.r, fg.bgrid, init, vec(fg.P[1,:]),
+                                    betta_hat, fg.dirs )
+end
 
-pm = prsModel( r=r, delta=delta, psi=[ psi psi ], chi=[ chi chi ],
-                A=A_jt, g=g_jt, P=R, nR=[nR nR], rho=.5, lam=.5 )
-V, bprime, R1, R2, x1, x2 = vbg_init( pm )
-vOut = copy(V)
-bellman_operator!(pm, V,vOut, bprime, R1, R2, x1, x2 )
-
-
-
-
-fg = fiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
-                  rho=.5, A=A_jt, g=g_jt, P=P, nR=nR )
+W = uncSetUpdate( fg, init )
