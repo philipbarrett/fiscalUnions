@@ -77,3 +77,14 @@ for it in 1:10
   W_new = uncSetUpdate( fg, W )
   W = copy(W_new)
 end
+
+using JLD
+
+jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
+    addrequire(file, Polygons)
+    write(file, "W", W)
+end
+
+# Can then acecss W with:
+# d = load("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld")
+# W = d["w"]
