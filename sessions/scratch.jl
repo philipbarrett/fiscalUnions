@@ -1,23 +1,21 @@
 A = [ 2.95, 2.975, 3, 3.025, 3.05 ]
 g = [ .205, .2125, .21, .2075, .215 ]
-A_jt = [ 2.95 2.98
-         2.98 2.95
-         3    3
-         3.02 3.05
-         3.05 3.02 ]
-g_jt = [ .205  .2125
-         .2125 .205
-         .21   .21
-         .2075 .215
-         .215  .2075 ]
-P = [ .4 .3 .2 .1 .0
-      .2 .4 .2 .1 .1
-      .1 .2 .4 .2 .1
-      .1 .1 .2 .4 .2
-      .0 .1 .2 .3 .4 ]
-nR = 40
+A_jt = [ 2.95 2.95
+         3.05 3.05
+         3.05 2.95
+         2.95 3.05 ]
+g_jt = [ .205  .21
+         .215  .21
+         .21   .205
+         .21   .215 ]
+P = [ .4 .2 .2 .2
+      .2 .4 .2 .2
+      .2 .2 .4 .2
+      .2 .2 .2 .4 ]
+nR = 20
 psi = .75
 chi = 7.0
+nb=10
 r = .03
 delta= 1.0
 
@@ -43,7 +41,7 @@ delta= 1.0
 # bellman_operator!(pm, V,vOut, bprime, R1, R2, x1, x2 )
 
 fg = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
-                A=A_jt, g=g_jt, P=P, nR=nR, rho=.5 )
+                A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb )
 init = initGame(fg)
 polyPlot(init[:,1])
 
@@ -62,9 +60,9 @@ kk = [ uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[1],
                                   fg.r, fg.bgrid, init, vec(fg.P[1,:]), betta_hat,
                                   fg.dirs )
                       for k in find(fg.potFeas[1,1]) ]
-for k in find(fg.potFeas[1,1])
+for k in find(fg.potFeas[1,8])
   println( "k=", k )
-  jj = uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[1],
+  jj = uncSetUpdate( fg.surp[k,1], vec(fg.pdLoss[k,:,1]), fg.bgrid[8],
                                     fg.r, fg.bgrid, init, vec(fg.P[1,:]),
                                     betta_hat, fg.dirs )
 end
