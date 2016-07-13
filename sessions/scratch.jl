@@ -70,21 +70,10 @@ hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
 #                       for k in find(fg.potFeas[is,ib]) ]
 
 
-W = uncSetUpdate( fg, init )
+W, ndirs = uncSetUpdate( fg, init )
 
 for it in 1:10
   println("*** it = ", it , " ***")
   W_new = uncSetUpdate( fg, W )
   W = copy(W_new)
 end
-
-using JLD
-
-jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
-    addrequire(file, Polygons)
-    write(file, "W", W)
-end
-
-# Can then acecss W with:
-# d = load("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld")
-# W = d["w"]

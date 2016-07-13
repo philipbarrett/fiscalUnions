@@ -1,5 +1,6 @@
 using Polygons
 using CHull2D
+using JLD
 
 include("../julia/dwl.jl")
 include("../julia/fiscalGame.jl")
@@ -49,20 +50,23 @@ delta= 1.0
 
 fg = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
                 A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb )
-init = initGame(fg)
+init, ndirs = initGame(fg)
 polyPlot(init[:,1])
 
 betta_hat = fg.betta * fg.delta
+thisndirs = 8
+dirs = hcat( [ cos(2*pi*(i-1)/thisndirs)::Float64 for i in 1:thisndirs ],
+             [ sin(2*pi*(i-1)/thisndirs)::Float64 for i in 1:thisndirs ] )
 ff = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
                         r, fg.bgrid, init, vec(P[2,:]), betta_hat,
-                        fg.dirs )
+                        dirs )
 gg = uncSetUpdate( fg.surp[3,2], vec(fg.pdLoss[3,:,2]), fg.bgrid[4],
                         r, fg.bgrid, init, vec(P[2,:]), betta_hat,
-                        fg.dirs, false )
+                        dirs, false )
 polyPlot([ff, gg])
 
 hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
-                  r, fg.bgrid, init, vec(P[1,:]), betta_hat, fg.dirs )
+                  r, fg.bgrid, init, vec(P[1,:]), betta_hat, dirs )
 # is = 1
 # ib = 10
 # for k in find(fg.potFeas[is,ib])
@@ -77,10 +81,28 @@ hh = uncSetUpdate( fg.surp[1,1], vec(fg.pdLoss[1,:,1]), fg.bgrid[1],
 #                       for k in find(fg.potFeas[is,ib]) ]
 
 
-W = uncSetUpdate( fg, init )
+# W = uncSetUpdate( fg, init, ndirs )
+W = init
 
-# for it in 1:10
-#   println("*** it = ", it , " ***")
-#   W_new = uncSetUpdate( fg, W )
-#   W = copy(W_new)
-# end
+for it in 1:5
+  println("*** it = ", it , " ***")
+  W_new = uncSetUpdate( fg, W, ndirs )
+  hd = hausdorff( W, W_new )
+  println("   ** mean & max hausdorff dist = ", ( mean(hd), maximum(hd) ), "**" )
+  W = copy(W_new)
+  ndirs = ndirsUpdate( ndirs, hd, fg.hddirs, fg.ndirsu )
+  println("   ** mean # search dirs = ", mean(ndirs), "**" )
+  println("   ** extremal # search dirs = ", extrema(ndirs), "**\n" )
+end
+
+
+
+
+jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
+    addrequire(file, Polygons)
+    write(file, "W", W)
+end
+
+# Can then acecss W with:
+# d = load("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld")
+# W = d["W"]

@@ -53,12 +53,15 @@ type FiscalGame
           # true if action respects debt bounds (nSxnb)(nR)
 
   # Algorithm details
-  dirs::Matrix{Float64}        # Search objects (nDx2)
+  ndirsl::Int                 # Lower bd on no. search directions
+  ndirsu::Int                 # Upper bd on no. search directions
+  hddirs::Float64             # Threshold hausdorff dist to inc dirs
+
 end
 
 function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
                       rho=.5, A=-1, g=-1, P=-1, nR::Int=20, nb=150,
-                      bmin=0, ndirs=32 )
+                      bmin=0, ndirsl=4, ndirsu=64, hddirs=1e-04 )
 
   if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
     Atemp, gtemp, P = defaultStates()
@@ -99,18 +102,19 @@ function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
                 for i in 1:nS, j in 1:nb ]
       # Indices of potentially feasible actions
 
-  dirs = hcat( [ cos(2*pi*(i-1)/ndirs) for i in 1:ndirs ],
-               [ sin(2*pi*(i-1)/ndirs) for i in 1:ndirs ] )
-
   FiscalGame( r, 1/(1+r), delta, psi, chi, A, g, P, nS, bgrid, nb,
-              dw, nR, actions, pdLoss, surp, revSum, gSum, feas, dirs )
+              dw, nR, actions, pdLoss, surp, revSum, gSum, feas,
+              ndirsl, ndirsu, hddirs )
 end
 
 function initGame( fg::FiscalGame )
   polys = [ Polygon( pts=fg.pdLoss[:,:,i] )::Polygon for i in 1:fg.nS ]
       # Set up the polygons for the initial value.  Need to enforce polygon type
       # to make tsure that the array is not of the "Any" type (needed for plots)
-  return [ polys[i] for i in 1:fg.nS, j in 1:fg.nb ]
+  W = [ polys[i] for i in 1:fg.nS, j in 1:fg.nb ]
       # The constant period payoff polygon.  Depends only on the exog state,
       # not the debt level
+  ndirs = [ fg.ndirsl::Int for i in 1:fg.nS, j in 1:fg.nb ]
+      # Matrix of number of directions for each state
+  return W, ndirs
 end
