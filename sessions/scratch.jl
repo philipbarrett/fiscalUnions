@@ -19,7 +19,7 @@ nR = 40
 psi = .75
 chi = 7.0
 r = .03
-delta= 1
+delta= 1.0
 
 
 dw = DWL( A=A, g=g, nR=nR, psi=psi, chi=chi, r=r )
@@ -41,3 +41,9 @@ pm = prsModel( r=r, delta=delta, psi=[ psi psi ], chi=[ chi chi ],
 V, bprime, R1, R2, x1, x2 = vbg_init( pm )
 vOut = copy(V)
 bellman_operator!(pm, V,vOut, bprime, R1, R2, x1, x2 )
+
+
+
+
+fg = fiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
+                  rho=.5, A=A_jt, g=g_jt, P=P, nR=nR )
