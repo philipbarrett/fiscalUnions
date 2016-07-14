@@ -105,10 +105,32 @@ function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
 
   if par
       # Parallel execution
+    # @spawn r, bgrid, W, betta_hat, outer
+    #     # Export variables - I wish that this worked! :(
     surp_ar = vec( [surp[:,i]::Vector{Float64}
                         for i in 1:nS, j in 1:nb] )
-    dirs = vec(  )
-
+    pdLoss_ar = vec( [ pdLoss[:,:,i]::Matrix{Float64}
+                        for i in 1:nS, j in 1:nb] )
+    b_ar = vec( [ bgrid[j]::Float64
+                        for i in 1:nS, j in 1:nb] )
+    r_ar = vec( [ r::Float64 for i in 1:(nS*nb) ] )
+    bgrid_ar = vec( [ bgrid::LinSpace{Float64} for i in 1:(nS*nb) ] )
+    W_ar = vec( [ W::Array{Polygon,2} for i in 1:(nS*nb) ] )
+    Q_ar = vec( [ vec(P[i,:])::Vector{Float64}
+                        for i in 1:nS, j in 1:nb ] )
+    bh_ar = vec( [ betta_hat::Vector{Float64} for i in 1:(nS*nb) ] )
+    dirs_ar = vec( [ dirscreate(ndirs[i,j])::Matrix{Float64}
+                        for i in 1:nS, j in 1:nb] )
+    idx_ar = vec( [ find(potFeas[i,j])::Vector{Int}
+                        for i in 1:nS, j in 1:nb] )
+    outer_ar = vec( [ outer::Bool for i in 1:(nS*nb) ] )
+        # Setting up the array inputs
+    out = pmap( (s,p,b,r,bg,WW,Q,bh,d,idx,out) ->
+              union( [ uncSetUpdate( s[k], vec(p[k,:]), b, r, bg,
+                                      WW, Q, bh, d, out )::Polygon
+                         for k in idx ] )::Polygon,
+          surp_ar, pdLoss_ar, b_ar, r_ar, bgrid_ar, W_ar, Q_ar, bh_ar,
+          dirs_ar, idx_ar, outer_ar )
 
   else
       # Serial execution
@@ -120,8 +142,9 @@ function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
                                         r, bgrid, W, vec(P[i,:]), betta_hat,
                                         dirs, outer )::Polygon
                             for k in find(potFeas[i,j]) ] )
-    end
-  end
+    end # for i in 1:nS, j in 1:nb
+  end # if par
+
   return out
 end
 
