@@ -96,7 +96,7 @@ Updates the set using the unconstrained mapping for a full fiscal game
 function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
                         ndirs::Matrix{Int}, outer::Bool=true )
   nS, nb, nR, surp, pdLoss, bgrid, r, P, potFeas, par =
-        fg.nS, fg.nb, fg.nR, fg.surp, fg.pdLoss, fg.bgrid, fg.r, fg.P, fg.potFeas, par
+        fg.nS, fg.nb, fg.nR, fg.surp, fg.pdLoss, fg.bgrid, fg.r, fg.P, fg.potFeas, fg.par
       # Unpack fg
   betta_hat = fg.betta * fg.delta
       # Discount rate
