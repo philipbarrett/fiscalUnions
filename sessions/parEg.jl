@@ -9,7 +9,7 @@ Example with parallel calculation of sets=#
 # Loads file1.jl, file2.jl etc
 
 nprocs = 10
-addprocs(10)
+addprocs(nprocs)
 
 @everywhere using Polygons, CHull2D
 
@@ -51,11 +51,8 @@ fg_ser.par = false
 init, ndirs = initGame(fg)
     # Initialize
 
-t_par = @time W_par = uncSetUpdate( fg_par, W, ndirs )
-t_par = @time W_ser = uncSetUpdate( fg_ser, W, ndirs )
-
-println("t_ser:\n", t_ser)
-println("t_par:\n", t_par)
+@time W_par = uncSetUpdate( fg_par, W, ndirs )
+@time W_ser = uncSetUpdate( fg_ser, W, ndirs )
 
 hd = hausdorff( W_par, W_ser )
 
