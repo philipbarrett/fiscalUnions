@@ -156,3 +156,32 @@ function ndirsUpdate( ndirs, hd, hddirs::Float64 = 1e-6, ndirsu=2^8 )
       # Dimensions
   return [ hd[i,j] < hddirs ? 2 * ndirs[i,j] : ndirs[i,j] for i in 1:N, j in 1:M ]
 end
+
+function uncSol( fg::FiscalGame, W::Array{Polygon,2},
+                        ndirs::Matrix{Int}, outer::Bool=true,
+                        maxiter::Int=200, tol=1e-05,
+                        saveloc = "" )
+  hd = [tol*2]
+  it = 0
+    # Initialize loop variables
+  while it < 80 maxiter maximum(hd) > tol
+    it += 1
+    println("*** it = ", it , " ***")
+    W_new = uncSetUpdate( fg, W, ndirs )
+    hd = hausdorff( W, W_new )
+    println("   ** mean & max hausdorff dist = ", ( mean(hd), maximum(hd) ), "**" )
+    W = copy(W_new)
+    ndirs = ndirsUpdate( ndirs, hd, fg.hddirs, fg.ndirsu )
+    println("   ** mean # search dirs = ", mean(ndirs), "**" )
+    println("   ** extremal # search dirs = ", extrema(ndirs), "**\n" )
+  end
+
+  if saveloc != ""
+    jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
+        addrequire(file, Polygons)
+        write(file, "W", W, "hd", hd, "ndirs", ndirs )
+    end
+  end
+
+  return W_new, ndirs, hd
+end

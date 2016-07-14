@@ -19,6 +19,8 @@ Example with parallel calculation of sets=#
 @everywhere include("$wd/julia/fiscalGame.jl")
 @everywhere include("$wd/julia/fiscalSol.jl")
 
+saveloc = "/home/pobarrett/data/fiscalUnions/unc.jld"
+
 A = [ 2.95, 2.975, 3, 3.025, 3.05 ]
 g = [ .205, .2125, .21, .2075, .215 ]
 A_jt = [ 2.95 2.95
@@ -52,11 +54,14 @@ init, ndirs = initGame(fg_par)
     # Initialize
 
 
-@time W_ser = uncSetUpdate( fg_ser, init, ndirs )
+# @time W_ser = uncSetUpdate( fg_ser, init, ndirs )
 W_par = uncSetUpdate( fg_par, init, ndirs )
     # Compilation
 @time W_par = uncSetUpdate( fg_par, init, ndirs )
 
-hd = hausdorff( W_par, W_ser )
+# hd = hausdorff( W_par, W_ser )
+    # Just check that this is all ok
 
 println( "max(hd) = ", maximum(hd) )
+
+W_sol =
