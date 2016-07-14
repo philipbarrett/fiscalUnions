@@ -44,15 +44,15 @@ par = true
 
 fg_par = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
               A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=par )
-fg_ser = fg
+fg_ser = fg_par
 fg_ser.par = false
     # Serial and parallel fiscal games
 
-init, ndirs = initGame(fg)
+init, ndirs = initGame(fg_par)
     # Initialize
 
-@time W_par = uncSetUpdate( fg_par, W, ndirs )
-@time W_ser = uncSetUpdate( fg_ser, W, ndirs )
+@time W_par = uncSetUpdate( fg_par, init, ndirs )
+@time W_ser = uncSetUpdate( fg_ser, init, ndirs )
 
 hd = hausdorff( W_par, W_ser )
 
