@@ -81,6 +81,15 @@ function uncSetUpdate( surp::Float64, pdLoss::Vector{Float64}, b::Float64,
 end
 
 """
+    function dirscreate( N::Int )
+Creates the N search directions
+"""
+function dirscreate( N::Int )
+  hcat( [ cos(2*pi*(i-1)/N) for i in 1:N ],
+               [ sin(2*pi*(i-1)/N) for i in 1:N ] )
+end
+
+"""
     function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2}, outer::Bool=true )
 Updates the set using the unconstrained mapping for a full fiscal game
 """
@@ -90,20 +99,28 @@ function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
         fg.nS, fg.nb, fg.nR, fg.surp, fg.pdLoss, fg.bgrid, fg.r, fg.P, fg.potFeas
       # Unpack fg
   betta_hat = fg.betta * fg.delta
-      # Discuont rate
+      # Discount rate
   out = copy(W)
       # initialize output
-  for i in 1:nS, j in 1:nb
-    println( "(i,j)=(", i, ",", j, ")" )
-    thisndirs = ndirs[i,j]
-        # Number of search directions
-    dirs = hcat( [ cos(2*pi*(i-1)/thisndirs) for i in 1:thisndirs ],
-                 [ sin(2*pi*(i-1)/thisndirs) for i in 1:thisndirs ] )
-        # The search directions
-    out[i, j] = union( [ uncSetUpdate( surp[k,i], vec(pdLoss[k,:,i]), bgrid[j],
-                                      r, bgrid, W, vec(P[i,:]), betta_hat,
-                                      dirs, outer )::Polygon
-                          for k in find(potFeas[i,j]) ] )
+
+  if par
+      # Parallel execution
+    surp_ar = vec( [surp[:,i]::Vector{Float64}
+                        for i in 1:nS, j in 1:nb] )
+    dirs = vec(  )
+
+
+  else
+      # Serial execution
+    for i in 1:nS, j in 1:nb
+      println( "(i,j)=(", i, ",", j, ")" )
+      dirs = dirscreate( ndirs[i,j] )
+          # The search directions
+      out[i, j] = union( [ uncSetUpdate( surp[k,i], vec(pdLoss[k,:,i]), bgrid[j],
+                                        r, bgrid, W, vec(P[i,:]), betta_hat,
+                                        dirs, outer )::Polygon
+                            for k in find(potFeas[i,j]) ] )
+    end
   end
   return out
 end
