@@ -64,4 +64,4 @@ W_par = uncSetUpdate( fg_par, init, ndirs )
 
 println( "max(hd) = ", maximum(hd) )
 
-W_sol =
+W_sol = uncSol( fg_par, init, ndirs, true, 2, 1e-05, saveloc )
