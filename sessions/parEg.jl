@@ -1,10 +1,15 @@
-using Polygons
-using CHull2D
-using JLD
+#= parEg.jl
+Philip Barrett, pobarrett@gmail.com
+14jul2016, Chicago
+
+Example with parallel calculation of sets=#
+
+@everywhere using Polygons, CHull2D
 
 include("../julia/dwl.jl")
 include("../julia/fiscalGame.jl")
 include("../julia/fiscalSol.jl")
+
 
 A = [ 2.95, 2.975, 3, 3.025, 3.05 ]
 g = [ .205, .2125, .21, .2075, .215 ]
@@ -27,9 +32,10 @@ nb = 20
 r = .03
 delta = 1.0
 ndirsl = 8
+par = true
 
 fg = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
-              A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl )
+              A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=par )
 init, ndirs = initGame(fg)
 polyPlot(init[:,1])
 

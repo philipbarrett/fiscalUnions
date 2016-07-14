@@ -56,12 +56,13 @@ type FiscalGame
   ndirsl::Int                 # Lower bd on no. search directions
   ndirsu::Int                 # Upper bd on no. search directions
   hddirs::Float64             # Threshold hausdorff dist to inc dirs
+  par::Bool                   # Parallel execution flag
 
 end
 
 function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
                       rho=.5, A=-1, g=-1, P=-1, nR::Int=20, nb=150,
-                      bmin=0, ndirsl=4, ndirsu=64, hddirs=1e-04 )
+                      bmin=0, ndirsl=4, ndirsu=64, hddirs=1e-04, par=false )
 
   if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
     Atemp, gtemp, P = defaultStates()
@@ -104,7 +105,7 @@ function FiscalGame( ; r=0.04, delta=[.95, .95], psi=[75, .75], chi=[7.0, 7.0],
 
   FiscalGame( r, 1/(1+r), delta, psi, chi, A, g, P, nS, bgrid, nb,
               dw, nR, actions, pdLoss, surp, revSum, gSum, feas,
-              ndirsl, ndirsu, hddirs )
+              ndirsl, ndirsu, hddirs, par )
 end
 
 function initGame( fg::FiscalGame )
