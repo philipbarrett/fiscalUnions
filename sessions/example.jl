@@ -95,9 +95,9 @@ dirs = hcat( [ cos(2*pi*(i-1)/thisndirs)::Float64 for i in 1:thisndirs ],
 W = init
 
 it = 0
-hd = 10
+hd = 10.0
 
-while it < 80 && hd > 1e-05
+while it < 80 && maximum(hd) > 1e-05
   it += 1
   println("*** it = ", it , " ***")
   W_new = uncSetUpdate( fg, W, ndirs )
