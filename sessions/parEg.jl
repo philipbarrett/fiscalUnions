@@ -8,8 +8,8 @@ Example with parallel calculation of sets=#
 #   julia -p <n> -L file1.jl -L file2.jl driver.jl
 # Loads file1.jl, file2.jl etc
 
-nprocs = 10
-addprocs(nprocs)
+# nprocs = 10
+# addprocs(nprocs)
 
 @everywhere using Polygons, CHull2D
 
@@ -44,15 +44,18 @@ par = true
 
 fg_par = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
               A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=par )
-fg_ser = fg_par
-fg_ser.par = false
+fg_ser = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
+                                    A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=!par )
     # Serial and parallel fiscal games
 
 init, ndirs = initGame(fg_par)
     # Initialize
 
-@time W_par = uncSetUpdate( fg_par, init, ndirs )
+
 @time W_ser = uncSetUpdate( fg_ser, init, ndirs )
+W_par = uncSetUpdate( fg_par, init, ndirs )
+    # Compilation
+@time W_par = uncSetUpdate( fg_par, init, ndirs )
 
 hd = hausdorff( W_par, W_ser )
 

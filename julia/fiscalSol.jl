@@ -131,7 +131,10 @@ function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
                          for k in idx ] )::Polygon,
           surp_ar, pdLoss_ar, b_ar, r_ar, bgrid_ar, W_ar, Q_ar,
           bh_ar,dirs_ar, idx_ar, outer_ar )
-    out = [ temp[i + j * (nS-1)]::Polygon i in 1:nS, j in 1:nb )
+#    return temp
+#    out = [ temp[i + j * (nS-1)]::Polygon for i in 1:nS, j in 1:nb ]
+    out = reshape( temp, nS, nb )
+    out = [ out[i,j]::Polygon for i in 1:nS, j in 1:nb ]
   else
       # Serial execution
     for i in 1:nS, j in 1:nb
