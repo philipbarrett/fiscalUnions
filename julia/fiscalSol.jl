@@ -125,13 +125,13 @@ function uncSetUpdate( fg::FiscalGame, W::Array{Polygon,2},
                         for i in 1:nS, j in 1:nb] )
     outer_ar = vec( [ outer::Bool for i in 1:(nS*nb) ] )
         # Setting up the array inputs
-    out = pmap( (s,p,b,r,bg,WW,Q,bh,d,idx,out) ->
+    temp = pmap( (s,p,b,r,bg,WW,Q,bh,d,idx,out) ->
               union( [ uncSetUpdate( s[k], vec(p[k,:]), b, r, bg,
                                       WW, Q, bh, d, out )::Polygon
                          for k in idx ] )::Polygon,
-          surp_ar, pdLoss_ar, b_ar, r_ar, bgrid_ar, W_ar, Q_ar, bh_ar,
-          dirs_ar, idx_ar, outer_ar )
-
+          surp_ar, pdLoss_ar, b_ar, r_ar, bgrid_ar, W_ar, Q_ar,
+          bh_ar,dirs_ar, idx_ar, outer_ar )
+    out = [ temp[i + j * (nS-1)]::Polygon i in 1:nS, j in 1:nb )
   else
       # Serial execution
     for i in 1:nS, j in 1:nb
