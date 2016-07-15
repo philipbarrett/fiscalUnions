@@ -21,7 +21,7 @@ using JLD
 @everywhere include("$wd/julia/fiscalGame.jl")
 @everywhere include("$wd/julia/fiscalSol.jl")
 
-saveloc = "/home/pobarrett/data/2016/fiscalUnions/unc.jld"
+saveloc = "/home/pobarrett/data/2016/fiscalUnions/unc_low.jld"
 
 A = [ 2.95, 2.975, 3, 3.025, 3.05 ]
 g = [ .205, .2125, .21, .2075, .215 ]
@@ -40,16 +40,17 @@ P = [ .4 .2 .2 .2
 nR = 40
 psi = .75
 chi = 7.0
-nb = 60
+nb = 30
 r = .03
 delta = 1.0
-ndirsl = 4
-par = true
+ndirsl = 32
+ndirsu = 32
+par = false 
 
 fg_par = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
-              A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=par )
-fg_ser = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
-                                    A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=!par )
+              A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, ndirsu=ndirsu, par=par )
+# fg_ser = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
+#              A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, par=!par )
     # Serial and parallel fiscal games
 
 init, ndirs = initGame(fg_par)
@@ -59,11 +60,12 @@ init, ndirs = initGame(fg_par)
 # @time W_ser = uncSetUpdate( fg_ser, init, ndirs )
 W_par = uncSetUpdate( fg_par, init, ndirs )
     # Compilation
-@time W_par = uncSetUpdate( fg_par, init, ndirs )
+# @time W_par = uncSetUpdate( fg_par, init, ndirs )
 
 # hd = hausdorff( W_par, W_ser )
     # Just check that this is all ok
 
 # println( "max(hd) = ", maximum(hd) )
 
-W_sol, ndirs, hd = uncSol( fg_par, init, ndirs, true, 400, 1e-06, saveloc )
+# W_sol, ndirs, hd = uncSol( fg_par, init, ndirs, true, 2, 1e-05, saveloc )
+

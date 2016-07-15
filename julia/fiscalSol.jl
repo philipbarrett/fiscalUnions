@@ -154,7 +154,7 @@ end
 function ndirsUpdate( ndirs, hd, hddirs::Float64 = 1e-6, ndirsu=2^8 )
   N, M = size(ndirs)
       # Dimensions
-  return [ hd[i,j] < hddirs ? 2 * ndirs[i,j] : ndirs[i,j] for i in 1:N, j in 1:M ]
+  return [ hd[i,j] < hddirs ? min( 2 * ndirs[i,j], ndirsu ) : ndirs[i,j] for i in 1:N, j in 1:M ]
 end
 
 function uncSol( fg::FiscalGame, W::Array{Polygon,2},
