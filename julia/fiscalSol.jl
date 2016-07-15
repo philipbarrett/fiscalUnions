@@ -164,7 +164,7 @@ function uncSol( fg::FiscalGame, W::Array{Polygon,2},
   hd = [tol*2]
   it = 0
     # Initialize loop variables
-  while it < 80 maxiter maximum(hd) > tol
+  while ( it < maxiter && maximum(hd) > tol )
     it += 1
     println("*** it = ", it , " ***")
     W_new = uncSetUpdate( fg, W, ndirs )
@@ -177,11 +177,13 @@ function uncSol( fg::FiscalGame, W::Array{Polygon,2},
   end
 
   if saveloc != ""
-    jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
-        addrequire(file, Polygons)
-        write(file, "W", W, "hd", hd, "ndirs", ndirs )
+    jldopen(saveloc, "w") do file
+      addrequire(file, Polygons)
+      write(file, "W", W)
+      write(file, "hd", hd)
+      write(file, "ndirs", ndirs )
     end
   end
 
-  return W_new, ndirs, hd
+  return W, ndirs, hd
 end
