@@ -1,0 +1,36 @@
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+WARNING: replacing module Polygons
+ 18.034157 seconds (340.15 k allocations: 37.192 MB, 0.50% gc time)
+*** it = 1 ***
+   ** mean & max hausdorff dist = (0.010322938550799797,0.03015010645572194)**
+   ** mean # search dirs = 32.0**
+   ** extremal # search dirs = (32,32)**
+
+*** it = 2 ***
+   ** mean & max hausdorff dist = (0.008677639748438002,0.023604942915201432)**
+   ** mean # search dirs = 32.0**
+   ** extremal # search dirs = (32,32)**
+

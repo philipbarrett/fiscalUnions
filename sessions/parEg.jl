@@ -8,12 +8,9 @@ Example with parallel calculation of sets=#
 #   julia -p <n> -L file1.jl -L file2.jl driver.jl
 # Loads file1.jl, file2.jl etc
 
-# nprocs = 10
-# addprocs(nprocs)
-
-@everywhere using Polygons, CHull2D
-
-using JLD
+nprocs = 70 
+using JLD, ClusterManagers
+addprocs_pbs(nprocs)
 
 @everywhere wd = "/home/pobarrett/code/2016/fiscalUnions"
 
@@ -21,7 +18,9 @@ using JLD
 @everywhere include("$wd/julia/fiscalGame.jl")
 @everywhere include("$wd/julia/fiscalSol.jl")
 
-saveloc = "/home/pobarrett/data/2016/fiscalUnions/unc_low.jld"
+@everywhere using Polygons, CHull2D
+
+saveloc = "/home/pobarrett/data/2016/fiscalUnions/unc_32.jld"
 
 A = [ 2.95, 2.975, 3, 3.025, 3.05 ]
 g = [ .205, .2125, .21, .2075, .215 ]
@@ -31,8 +30,8 @@ A_jt = [ 2.95 2.95
          2.95 3.05 ]
 g_jt = [ .21   .21
          .21   .21
-         .215   .205
-         .205   .215 ]
+         .205   .215
+         .215   .205 ]
 P = [ .4 .2 .2 .2
       .2 .4 .2 .2
       .2 .2 .4 .2
@@ -45,7 +44,7 @@ r = .03
 delta = 1.0
 ndirsl = 32
 ndirsu = 32
-par = false 
+par = true 
 
 fg_par = FiscalGame( r=r, delta=[delta, delta], psi=[ psi, psi ], chi=[ chi, chi ],
               A=A_jt, g=g_jt, P=P, nR=nR, rho=.5, nb=nb, ndirsl=ndirsl, ndirsu=ndirsu, par=par )
@@ -59,13 +58,13 @@ init, ndirs = initGame(fg_par)
 
 # @time W_ser = uncSetUpdate( fg_ser, init, ndirs )
 W_par = uncSetUpdate( fg_par, init, ndirs )
-    # Compilation
-# @time W_par = uncSetUpdate( fg_par, init, ndirs )
+    # Compilation - also gets the warnings out of the way! :)
+@time W_par = uncSetUpdate( fg_par, init, ndirs )
 
 # hd = hausdorff( W_par, W_ser )
     # Just check that this is all ok
 
 # println( "max(hd) = ", maximum(hd) )
 
-# W_sol, ndirs, hd = uncSol( fg_par, init, ndirs, true, 2, 1e-05, saveloc )
+W_sol, ndirs, hd = uncSol( fg_par, init, ndirs, true, 500, 1e-05, saveloc )
 
