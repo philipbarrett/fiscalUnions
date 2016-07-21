@@ -14,21 +14,21 @@ function bpi( bgrid::LinSpace, bprime::Float64 )
   bmax = maximum(bgrid)
   n = length(bgrid)
 
-  if ( bprime < bmin )
+  if ( bprime < bmin - 1e-12 )
     println( "bprime = ", bprime )
     println( "bmin = ", bmin )
     error("bprime must be greater than bmin")
   end
 
-  if ( bprime > bmax )
+  if ( bprime > bmax + 1e-12 )
     println( "bprime = ", bprime )
     println( "bmax = ", bmax )
     error("bprime must be less than bmax")
   end
 
-  if bprime == bmin
+  if bprime <= bmin
     return 1, 2, bgrid[1], bgrid[2], 1
-  elseif bprime== bmax
+  elseif bprime >= bmax
     return n-1, n, bgrid[n-1], bgrid[n], 0
   end
 
