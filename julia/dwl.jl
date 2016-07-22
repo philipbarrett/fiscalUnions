@@ -54,8 +54,6 @@ function DWL( ; A::Vector=[0.0], g::Vector=[0.0], nR::Int=1,
       # The dwl object
 end
 
-### TODO: ADD PLOTTING HERE: (tau,R), (x,c), (x,R), (R,W)
-
 function DWLplot( dw::DWL, chart="tR" )
 
   color_vec = [ "magenta" "red" "blue" "black" "green" "cyan" "orange"  ]
