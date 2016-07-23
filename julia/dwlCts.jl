@@ -2,7 +2,7 @@
 Philip Barrett, pobarrett@gmail.com
 22jul2016, Chicago
 
-Creates a deadweight loss object for the continuous-action roblem
+Creates a deadweight loss object for the continuous-action problem
 =#
 
 using Gadfly, Colors, Roots
@@ -64,6 +64,51 @@ function dwlc( ; nS::Int=1, nb::Int=1, A::Vector=[0.0],
       # Range of taxes
   return DWLC( nS, nb, chi, psi, blim, bgrid, x1, x2, R1, R2,
                   tau1, tau2 )
+end
+
+function dwlc2( ; nS::Int=1, nb::Int=1, A::Matrix=[0.0 0.0],
+              g::Matrix=[0.0 0.0],
+              psi::Vector = [.75, .75], chi::Vector = [2.0, 2.0],
+              r::Float64 = .03, bmin::Float64=0.0, rho::Float64=.5 )
+
+  vrho = [ rho, 1-rho ]
+      # Relative sizes
+  x2root = [ function(x)
+              chi[j]*x^(-1/psi[j]) - A[i,j] +
+                chi[j]/psi[j]*(1-x)*x^(-1-1/psi[j]) end
+                for i in 1:nS, j in 1:2 ]
+      # Error on x2 equation
+  x2 = [ fzero( x2root[i,j],0,1)::Float64 for i in 1:nS, j in 1:2 ]
+      # Solve for the root
+  R2 = ( A - ( ones(nS,1) * chi' ) .* x2 .^
+            ( -1 ./ ( ones(nS,1) * psi' ) ) ) .*
+            ( 1 - x2 ) .* ( ones(nS) * vrho' )
+      # Corresponding revenue
+  blim = 1 / r * minimum( sum(R2 - g, 2 ) )
+      # The natural upper bound on debt
+  bgrid = linspace( bmin, blim, nb )
+      # The grid of debt levels
+  R1 = [ ((1+r)*bgrid[j] + sum(g[i,:]) - blim - R2[i,3-k])::Float64
+              for i in 1:nS, j in 1:nb, k in 1:2 ]
+      # Lowest revenue possible.  remember to subtract the
+      # *other* country's revenue from the outstanding debt.
+  x1root = [ function(x)
+                (A[i,k]-chi[k]*x^(-1/psi[k]))*(1-x)*vrho[k] -
+                  R1[i,j,k] + 1e-14 end
+                    for i in 1:nS, j in 1:nb, k in 1:2 ]
+      # Error on x1 equation.  Add a tiny amount to make
+      # sure can find the root
+  x1 = [ fzero( x1root[i,j,k],0,x2[i,k]) ::Float64
+            for i in 1:nS, j in 1:nb, k in 1:2 ]
+      # Solve for the root
+  tau2 = [ 1 - chi[k] * x2[i,k]^( - 1 / psi[k] ) / A[i,k]
+            for i in 1:nS, k in 1:2 ]
+  tau1 = [ 1 - chi[k] * x1[i,j,k]^( - 1 / psi[k] ) / A[i,k]
+            for i in 1:nS, j in 1:nb, k in 1:2 ]
+      # Range of taxes
+  return [ DWLC( nS, nb, chi[k], psi[k], blim, bgrid, x1[:,:,k],
+              x2[:,k], R1[:,:,k], R2[:,k], tau1[:,:,k], tau2[:,k] )
+                  for k in 1:2 ]
 end
 
 function w_eval( R::Float64, chi::Float64, psi::Float64,
