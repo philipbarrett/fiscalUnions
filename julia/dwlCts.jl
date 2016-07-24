@@ -18,14 +18,35 @@ type DWLC
   blim::Float64               # Upper bound on debt
   bgrid::LinSpace{Float64}    # Debt grid
 
-  x1::Matrix{Float64}         # Lower bound on leisure
+  x1::Array{Float64,3}        # Lower bound on leisure
   x2::Vector{Float64}         # Upper bound on leisure
-  R1::Matrix{Float64}         # Lower bound on revenue
+  R1::Array{Float64,3}        # Lower bound on revenue
   R2::Vector{Float64}         # Upper bound on revenue
-  tau1::Matrix{Float64}       # Lower bound on taxes
+  tau1::Array{Float64,3}      # Lower bound on taxes
   tau2::Vector{Float64}       # Upper bound on taxes
 
 end
+
+type DWLC2
+
+  nS::Int64                   # Number of exogenous states
+  nb::Int64                   # Number of endogenous states
+
+  blim::Float64               # Upper bound on debt
+  bgrid::LinSpace{Float64}    # Debt grid
+  bprimeposs::Array{BitArray{1},2}    # Poss. cont. debt
+  nposs::Matrix{Int}          # Number of poss cont debt levels
+
+  xlow::Array{Array{Float64,1},3}     # Lower bound on leisure
+  xhigh::Matrix{Float64}              # Upper bound on leisure
+  Rlow::Array{Array{Float64,1},3}     # Lower bound on revenue
+  Rhigh::Matrix{Float64}              # Upper bound on revenue
+  taulow::Array{Array{Float64,1},3}   # Lower bound on taxes
+  tauhigh::Matrix{Float64}            # Upper bound on taxes
+
+end
+
+
 
 function dwlc( ; nS::Int=1, nb::Int=1, A::Vector=[0.0],
               g::Vector=[0.0],
@@ -66,56 +87,81 @@ function dwlc( ; nS::Int=1, nb::Int=1, A::Vector=[0.0],
                   tau1, tau2 )
 end
 
-function dwlc2( ; nS::Int=1, nb::Int=1, A::Matrix=[0.0 0.0],
-              g::Matrix=[0.0 0.0],
-              psi::Vector = [.75, .75], chi::Vector = [2.0, 2.0],
-              r::Float64 = .03, bmin::Float64=0.0, rho::Float64=.5 )
+function dwlc2( ; nS::Int=1, nb::Int=1,
+            A::Matrix=[0.0 0.0], g::Matrix=[0.0 0.0],
+            psi::Vector = [.75, .75], chi::Vector = [2.0, 2.0],
+            r::Float64 = .03, bmin::Float64=0.0, rho::Float64=.5 )
 
   vrho = [ rho, 1-rho ]
       # Relative sizes
-  x2root = [ function(x)
+
+  ## UPPER BOUNDS ##
+  xhighroot = [ function(x)
               chi[j]*x^(-1/psi[j]) - A[i,j] +
                 chi[j]/psi[j]*(1-x)*x^(-1-1/psi[j]) end
                 for i in 1:nS, j in 1:2 ]
-      # Error on x2 equation
-  x2 = [ fzero( x2root[i,j],0,1)::Float64 for i in 1:nS, j in 1:2 ]
+      # Error on xhigh equation
+  xhigh = [ fzero( xhighroot[i,j],0,1)::Float64
+                      for i in 1:nS, j in 1:2 ]
       # Solve for the root
-  R2 = ( A - ( ones(nS,1) * chi' ) .* x2 .^
+  Rhigh = ( A - ( ones(nS,1) * chi' ) .* xhigh .^
             ( -1 ./ ( ones(nS,1) * psi' ) ) ) .*
-            ( 1 - x2 ) .* ( ones(nS) * vrho' )
+            ( 1 - xhigh ) .* ( ones(nS) * vrho' )
       # Corresponding revenue
-  blim = 1 / r * minimum( sum(R2 - g, 2 ) )
+  tauhigh = [ 1 - chi[k] * xhigh[i,k]^( - 1 / psi[k] ) / A[i,k]
+                for i in 1:nS, k in 1:2 ]
+      # Upper bound on taxes
+
+  ## DEBT BOUNDS AND POSSIBILTIES ##
+  blim = 1 / r * minimum( sum(Rhigh - g, 2 ) ) - 1e-10
       # The natural upper bound on debt
   bgrid = linspace( bmin, blim, nb )
       # The grid of debt levels
-  R1 = [ ((1+r)*bgrid[j] + sum(g[i,:]) - blim - R2[i,3-k])::Float64
+  bprimeposs = [ ((1+r)*bgrid[j] + sum(g[i,:]) - bgrid + 1e-14 .<=
+                      sum(Rhigh[i,:]))::BitArray{1}
+                  for i in 1:nS, j in 1:nb ]
+      # Possible bprime from (s,b)
+  nposs = [ sum(bprimeposs[i,j])::Int for i in 1:nS, j in 1:nb ]
+      # Number of possible actions
+
+  ## LOWER BOUNDS ##
+  Rlow = [ ((1+r)*bgrid[j] + sum(g[i,:]) - bgrid[bprimeposs[i,j]] -
+              Rhigh[i,3-k])::Vector{Float64}
               for i in 1:nS, j in 1:nb, k in 1:2 ]
-      # Lowest revenue possible.  remember to subtract the
-      # *other* country's revenue from the outstanding debt.
-  x1root = [ function(x)
-                (A[i,k]-chi[k]*x^(-1/psi[k]))*(1-x)*vrho[k] -
-                  R1[i,j,k] + 1e-14 end
-                    for i in 1:nS, j in 1:nb, k in 1:2 ]
+      # Lowest revenue possible *given* a continuation debt
+      # level.  Only returns the lower limit when the proposed
+      # continuation debt level is possible.  Remember to
+      # subtract the *other* country's revenue from the
+      # outstanding debt.
+  xlowroot = [
+      [ function(x)
+        (A[i,k]-chi[k]*x^(-1/psi[k]))*(1-x)*vrho[k] -
+        Rlow[i,j,k][l] + 1e-14 end for l in 1:nposs[i,j] ]
+              for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Error on x1 equation.  Add a tiny amount to make
       # sure can find the root
-  x1 = [ fzero( x1root[i,j,k],0,x2[i,k]) ::Float64
-            for i in 1:nS, j in 1:nb, k in 1:2 ]
+  xlow = [ [ fzero( xlowroot[i,j,k][l],0,xhigh[i,k])::Float64
+                for l in 1:nposs[i,j] ]
+                for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Solve for the root
-  tau2 = [ 1 - chi[k] * x2[i,k]^( - 1 / psi[k] ) / A[i,k]
-            for i in 1:nS, k in 1:2 ]
-  tau1 = [ 1 - chi[k] * x1[i,j,k]^( - 1 / psi[k] ) / A[i,k]
-            for i in 1:nS, j in 1:nb, k in 1:2 ]
+  taulow = [ 1 - chi[k]*xlow[i,j,k].^(-1/psi[k]) / A[i,k]
+                for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Range of taxes
-  return [ DWLC( nS, nb, chi[k], psi[k], blim, bgrid, x1[:,:,k],
-              x2[:,k], R1[:,:,k], R2[:,k], tau1[:,:,k], tau2[:,k] )
-                  for k in 1:2 ]
+
+  return DWLC2( nS, nb, blim, bgrid, bprimeposs, nposs,
+            xlow, xhigh, Rlow, Rhigh, taulow, tauhigh )
 end
 
+
 function w_eval( R::Float64, chi::Float64, psi::Float64,
-                    x1::Float64, x2::Float64, a::Float64 )
-  x_err(x)=(a-chi*x^(-1/psi))*(1-x) - R + 1e-14
-      # The error funciton on x
-  x_rt = fzero( x_err, x1, x2 )
+                    xlow::Float64, xhigh::Float64, a::Float64 )
+  x_err(x) = (a-chi*x^(-1/psi))*(1-x) - R + 1e-14
+      # The error function on x
+# println( "xlow=", xlow )
+# println( "xhigh=", xhigh )
+# println( "x_err(xlow)=", x_err(xlow) )
+# println( "x_err(xhigh)=", x_err(xhigh) )
+  x_rt = fzero( x_err, xlow, xhigh )
       # The root
   return x_rt * a - chi * x_rt ^ ( 1 - 1 / psi ) / ( 1 - 1 / psi )
 end
