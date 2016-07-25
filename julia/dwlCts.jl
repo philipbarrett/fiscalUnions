@@ -155,7 +155,7 @@ end
 
 function w_eval( R::Float64, chi::Float64, psi::Float64,
                     xlow::Float64, xhigh::Float64, a::Float64 )
-  x_err(x) = (a-chi*x^(-1/psi))*(1-x) - R + 1e-14
+  x_err(x) = (a-chi*x^(-1/psi))*(1-x) - max( 0, R ) + 1e-14
       # The error function on x
 # println( "xlow=", xlow )
 # println( "xhigh=", xhigh )

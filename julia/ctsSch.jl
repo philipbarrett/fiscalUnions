@@ -14,14 +14,17 @@ function dirMax( bprime::Float64, b::Float64, chi::Vector, psi::Vector,
   obj(R1) = - ( dir[1] * rho *
                   w_eval( R1, chi[1], psi[1], x1[1], x2[1], a[1] ) +
                dir[2] * (1-rho) *
-                  w_eval( (1+r)*b + sumg - bprime - R1, chi[2], psi[2], x1[2], x2[2], a[2] ) )
+                  w_eval( (1+r)*b + sumg - bprime - R1, chi[2], psi[2], x1[2], x2[2], a[2] ) )::Float64
       # The objective function
   res = optimize( obj, R1bds[1], R1bds[2] )
       # The result
-  R1 = res.minimum
-  R2 = (1+r)*b + sumg - bprime - R1
+  R1 = (res.minimum)::Float64
+  R2 = ((1+r)*b + sumg - bprime - R1)::Float64
       # Revenues
-  dist = obj(R1)
+  W1 = w_eval( R1, chi[1], psi[1], x1[1], x2[1], a[1] )::Float64
+  W2 = w_eval( R2, chi[2], psi[2], x1[2], x2[2], a[2] )::Float64
+      # Welfare
+  dist = obj(R1)::Float64
       # Distance in search direction
-  return R1, R2, dist
+  return R1, R2, W1, W2, dist
 end
