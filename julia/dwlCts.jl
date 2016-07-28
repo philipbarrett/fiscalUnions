@@ -136,7 +136,7 @@ function dwlc2( ; nS::Int=1, nb::Int=1,
   xlowroot = [
       [ function(x)
         (A[i,k]-chi[k]*x^(-1/psi[k]))*(1-x)*vrho[k] -
-        Rlow[i,j,k][l] + 1e-14 end for l in 1:nposs[i,j] ]
+        max( 0, Rlow[i,j,k][l] ) + 1e-14 end for l in 1:nposs[i,j] ]
               for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Error on x1 equation.  Add a tiny amount to make
       # sure can find the root
@@ -154,13 +154,24 @@ end
 
 
 function w_eval( R::Float64, chi::Float64, psi::Float64,
-                    xlow::Float64, xhigh::Float64, a::Float64 )
-  x_err(x) = (a-chi*x^(-1/psi))*(1-x) - max( 0, R ) + 1e-14
+                  xlow::Float64, xhigh::Float64, a::Float64,
+                  rho::Float64, verbose::Bool=false )
+  jit = 1e-14
+      # Jitter for numerical stability.  Default mirrors dwlc2
+  x_err(x) = (a-chi*x^(-1/psi))*(1-x)*rho - max( 0, R ) + jit
       # The error function on x
-# println( "xlow=", xlow )
-# println( "xhigh=", xhigh )
-# println( "x_err(xlow)=", x_err(xlow) )
-# println( "x_err(xhigh)=", x_err(xhigh) )
+  jit = ( x_err(xlow) > 0 ) ? 0 : jit
+  jit = ( x_err(xhigh) < 0 ) ? 2e-14 : jit
+      # Jitter equation to guarantee a root in presence of small
+      # numerical errors
+  if verbose
+    println( "R=", R )
+    println( "jit=", jit )
+    println( "xlow=", xlow )
+    println( "xhigh=", xhigh )
+    println( "x_err(xlow)=", x_err(xlow) )
+    println( "x_err(xhigh)=", x_err(xhigh) )
+  end
   x_rt = fzero( x_err, xlow, xhigh )
       # The root
   return x_rt * a - chi * x_rt ^ ( 1 - 1 / psi ) / ( 1 - 1 / psi )
