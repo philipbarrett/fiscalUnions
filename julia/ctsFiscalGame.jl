@@ -43,17 +43,14 @@ type CtsFiscalGame
   gSum::Vector{Float64}       # Joint expenditure (nS)
 
   # Algorithm details
-  ndirsl::Int                 # Lower bd on no. search directions
-  ndirsu::Int                 # Upper bd on no. search directions
-  hddirs::Float64             # Threshold hausdorff dist to inc dirs
+  ndirs::Int                  # No. search directions
   par::Bool                   # Parallel execution flag
 
 end
 
 function ctsfiscalgame( ; r=0.04, delta=[.95, .95], psi=[75, .75],
                       chi=[7.0, 7.0], rho=.5, A=-1, g=-1, P=-1,
-                      nb=150, bmin=0, ndirsl=4, ndirsu=64,
-                      hddirs=1e-04, par=false )
+                      nb=150, bmin=0, ndirs=24, par=false )
 
   if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
     Atemp, gtemp, P = defaultStates()
@@ -76,7 +73,7 @@ function ctsfiscalgame( ; r=0.04, delta=[.95, .95], psi=[75, .75],
       # Sum of expenditure
 
   CtsFiscalGame( r, 1/(1+r), delta, psi, chi, rho, A, g, P, nS, bgrid,
-                  nb, dw, gSum, ndirsl, ndirsu, hddirs, par )
+                  nb, dw, gSum, ndirs, par )
 end
 
 function initGame( cfg::CtsFiscalGame )
@@ -108,9 +105,10 @@ function initGame( cfg::CtsFiscalGame )
       # The set f period values U
   W = [ U::Polygon for i in 1:cfg.nS, j in 1:cfg.nb ]
       # The period payoff polygons.
-  ndirs = [ cfg.ndirsl::Int for i in 1:cfg.nS, j in 1:cfg.nb ]
+  # ndirs = [ cfg.ndirsl::Int for i in 1:cfg.nS, j in 1:cfg.nb ]
       # Matrix of number of directions for each state
-  return W, ndirs
+  # return W, ndirs
+  return W
 end
 
 function pdPayoffs( cfg::CtsFiscalGame, dirs::Matrix, outer::Bool=true )
@@ -132,13 +130,29 @@ function pdPayoffs( cfg::CtsFiscalGame, dirs::Matrix, outer::Bool=true )
                 vec(dirs[idir,:]) )[5] for idir in 1:ndirs ]
                 for ibprime in 1:cfg.dw.nposs[iS,ib] ]
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
-    ret = [ [ Polygon( dirs=dirs, dists=dists[iS,ib][ibprime] )::Polygon 
-                for ibprime in 1:cfg.dw.nposs[iS,ib] ]
+    ret = [ [ Polygon( dirs=dirs, dists=dists[iS,ib][ibprime] )::Polygon
+                for ibprime in 1:cfg.dw.nposs[iS,ib] ]::Array{Polygon,1}
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
   else
-
+    ptsArray = [ [ [
+              dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
+                cfg.bgrid[ib], chi, psi,
+                [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
+                vec( cfg.dw.xhigh[iS,:]),
+                [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
+                vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
+                vec(dirs[idir,:]) )[3:4] for idir in 1:ndirs ]
+                for ibprime in 1:cfg.dw.nposs[iS,ib] ]
+                for iS in 1:cfg.nS, ib in 1:cfg.nb ]
+    pts =  [ [ [ distsArray[iS,ib][ibprime][idir][i]::Float64
+                    for idir in 1:ndirs, i in 1:2 ]
+                    for ibprime in 1:cfg.dw.nposs[iS,ib] ]
+                    for iS in 1:cfg.nS, ib in 1:cfg.nb ]
+    ret = [ [ Polygon( pts=pts[iS,ib][ibprime] )::Polygon
+                for ibprime in 1:cfg.dw.nposs[iS,ib] ]::Array{Polygon,1}
+                for iS in 1:cfg.nS, ib in 1:cfg.nb ]
   end
 
-
+  return ret
 
 end
