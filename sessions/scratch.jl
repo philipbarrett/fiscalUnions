@@ -1,22 +1,27 @@
 using BenchmarkTools
 
-nS = 2
-nb = 60
-A = [ 2.85 3.15
-      3.15 2.85 ]
-g =  .05 * ones( nS, 2 )
+nS = 3
+nb = 50
+A = [ 3.0 3.0
+      3.0 3.0
+      3.0 3.0 ]
+g =  [ .05  .0
+       .0   .0
+       .0   .05 ]
+    # Need a low-g state so that blim can be escaped somehow
 psi = [ .75, .75 ]
 chi = [ 1.75, 1.75 ]
 rho = .5
 r = .03
 bmin = 0.0
-P = [ .6 .4
-      .4 .6 ]
+P = [ .6 .2 .2
+      .2 .6 .2
+      .2 .2 .6 ]
 
 dw2 = dwlc2( nS=nS, nb=nb, A=A, g=g, psi=psi, chi=chi,
               r=r, bmin=bmin, rho=rho )
 
-ndir = 48
+ndir = 24
 dirs = hcat( [ cos(i*2*pi/ndir )::Float64 for i in 1:ndir ] ,
              [ sin(i*2*pi/ndir )::Float64 for i in 1:ndir ] )
 idir = 1
@@ -39,6 +44,11 @@ vho = [ rho, 1-rho ]
 # plot( layer( x=RR, y=WW, Geom.line ),
 #       layer( x=RR, y=UU, Geom.line ) )
 
+cfg = ctsfiscalgame( r=0.04, delta=[.95, .95], psi=psi,
+                          chi=chi, rho=.5, A=A, g=g, P=P,
+                          nb=nb, bmin=0.0, ndirs=ndir,
+                          par=false )
+
 ibprimeidx = [ find( cfg.dw.bprimeposs[iS,ib] )
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
 
@@ -49,22 +59,19 @@ R1, R2, W1, W2, dist =
         vec( cfg.dw.xhigh[iS,:]),
         [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
         vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
-        vec(dirs[idir,:]), true )
+        vec(dirs[idir,:]), false )
 
 bm = @benchmark R1, R2, W1, W2, dist =
-  dirMax( dw2.bgrid[ibprime], dw2.bgrid[ib], chi, psi,
-    [ dw2.xlow[iS,ib,i][ibprimeidx] for i in 1:2 ],
-    vec( dw2.xhigh[iS,:]),
-    [ dw2.Rlow[iS,ib,1][ibprimeidx], dw2.Rhigh[iS,1] ],
-    vec(A[iS,:]), sum(g[iS,:]), rho, r, dir )
+  dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
+    cfg.bgrid[ib], chi, psi,
+    [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
+    vec( cfg.dw.xhigh[iS,:]),
+    [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
+    vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
+    vec(dirs[idir,:]), false )
 println(bm)
 
-cfg = ctsfiscalgame( r=0.04, delta=[.95, .95], psi=psi,
-                          chi=chi, rho=.5, A=A, g=g, P=P,
-                          nb=nb, bmin=0.0, ndirs=48,
-                          par=false )
-
-W, ndirs = initGame( cfg )
+W = initGame( cfg )
 
 pdout = pdPayoffs( cfg, dirs, true )
 pdin = pdPayoffs( cfg, dirs, false )
@@ -77,5 +84,17 @@ polyPlot([W[1,ib], pdout[1,ib]..., pdout[2,ib]..., updateout[1,ib],
           updateout[2,ib], updatein[1,ib], updatein[2,ib]])
 
 hh = hausdorff( W, updateout ) / ( 1 - cfg.betta )
-fb, pd = firstBest( cfg, 40 )
-fbin = valsUpdate(fb, pd, cfg.P, dirs, cfg.dw, cfg.betta, false )
+fb = eqm( cfg, 100, true, false, pdout, W )
+fbin = valsUpdate(fb, pdin, cfg.P, dirs, cfg.dw, cfg.betta, false )
+
+dev = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A )
+
+fbIC1 = valsUpdate( fb, pdout, P, dirs, cfg.dw, cfg.betta, false, dev )
+                      # pdPayoffs::Array{Array{Polygon,1},2},
+                      # P::Matrix{Float64}, dirs::Matrix{Float64},
+                      # dw::DWLC2,
+                      # betta::Float64, outer::Bool=true, vdev=NaN )
+fbIC = eqm( cfg, 20, true, true, pdout, fb )
+
+# using AudioIO
+# play([sin(x) for x=0:0.03*pi:441])

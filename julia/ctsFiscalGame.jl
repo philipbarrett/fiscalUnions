@@ -144,7 +144,7 @@ function pdPayoffs( cfg::CtsFiscalGame, dirs::Matrix, outer::Bool=true )
                 vec(dirs[idir,:]) )[3:4] for idir in 1:ndirs ]
                 for ibprime in 1:cfg.dw.nposs[iS,ib] ]
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
-    pts =  [ [ [ distsArray[iS,ib][ibprime][idir][i]::Float64
+    pts =  [ [ [ ptsArray[iS,ib][ibprime][idir][i]::Float64
                     for idir in 1:ndirs, i in 1:2 ]
                     for ibprime in 1:cfg.dw.nposs[iS,ib] ]
                     for iS in 1:cfg.nS, ib in 1:cfg.nb ]
