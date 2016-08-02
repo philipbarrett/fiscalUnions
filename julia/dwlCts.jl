@@ -96,19 +96,14 @@ function dwlc2( ; nS::Int=1, nb::Int=1,
       # Relative sizes
 
   ## UPPER BOUNDS ##
-  xhighroot = [ function(x)
-              chi[j]*x^(-1/psi[j]) - A[i,j] +
-                chi[j]/psi[j]*(1-x)*x^(-1-1/psi[j]) end
-                for i in 1:nS, j in 1:2 ]
-      # Error on xhigh equation
-  xhigh = [ fzero( xhighroot[i,j],0,1)::Float64
-                      for i in 1:nS, j in 1:2 ]
+  xhigh = [ 1 - ( A[i,k] * psi[k] / ( chi[k]* (1+psi[k]) ) ) ^ psi[k]
+              for i in 1:nS, k in 1:2 ]
       # Solve for the root
-  Rhigh = ( A - ( ones(nS,1) * chi' ) .* xhigh .^
-            ( -1 ./ ( ones(nS,1) * psi' ) ) ) .*
+  Rhigh = ( A - ( ones(nS,1) * chi' ) .* ( 1 - xhigh ) .^
+            ( 1 ./ ( ones(nS,1) * psi' ) ) ) .*
             ( 1 - xhigh ) .* ( ones(nS) * vrho' )
       # Corresponding revenue
-  tauhigh = [ 1 - chi[k] * xhigh[i,k]^( - 1 / psi[k] ) / A[i,k]
+  tauhigh = [ 1 - chi[k] * ( 1 - xhigh[i,k] ) ^ ( 1 / psi[k] ) / A[i,k]
                 for i in 1:nS, k in 1:2 ]
       # Upper bound on taxes
 
@@ -135,7 +130,7 @@ function dwlc2( ; nS::Int=1, nb::Int=1,
       # outstanding debt.
   xlowroot = [
       [ function(x)
-        (A[i,k]-chi[k]*x^(-1/psi[k]))*(1-x)*vrho[k] -
+        (A[i,k]-chi[k]*(1-x)^(1/psi[k]))*(1-x)*vrho[k] -
         max( 0, Rlow[i,j,k][l] ) + 1e-14 end for l in 1:nposs[i,j] ]
               for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Error on x1 equation.  Add a tiny amount to make
@@ -144,7 +139,7 @@ function dwlc2( ; nS::Int=1, nb::Int=1,
                 for l in 1:nposs[i,j] ]
                 for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Solve for the root
-  taulow = [ 1 - chi[k]*xlow[i,j,k].^(-1/psi[k]) / A[i,k]
+  taulow = [ 1 - chi[k]*(1-xlow[i,j,k]).^(1/psi[k]) / A[i,k]
                 for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Range of taxes
 
@@ -158,7 +153,7 @@ function w_eval( R::Float64, chi::Float64, psi::Float64,
                   rho::Float64, verbose::Bool=false )
   jit = 1e-14
       # Jitter for numerical stability.  Default mirrors dwlc2
-  x_err(x) = (a-chi*x^(-1/psi))*(1-x)*rho - max( 0, R ) + jit
+  x_err(x) = (a-chi*(1-x)^(1/psi))*(1-x)*rho - max( 0, R ) + jit
       # The error function on x
   jit = ( x_err(xlow) > 0 ) ? 0 : jit
   jit = ( x_err(xhigh) < 0 ) ? 2e-14 : jit
@@ -174,5 +169,5 @@ function w_eval( R::Float64, chi::Float64, psi::Float64,
   end
   x_rt = fzero( x_err, xlow, xhigh )
       # The root
-  return x_rt * a - chi * x_rt ^ ( 1 - 1 / psi ) / ( 1 - 1 / psi )
+  return x_rt * a + chi * (1-x_rt)^(1+1/psi) / ( 1 + 1 / psi )
 end

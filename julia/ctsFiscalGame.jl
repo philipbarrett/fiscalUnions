@@ -52,11 +52,11 @@ function ctsfiscalgame( ; r=0.04, delta=[.95, .95], psi=[75, .75],
                       chi=[7.0, 7.0], rho=.5, A=-1, g=-1, P=-1,
                       nb=150, bmin=0, ndirs=24, par=false )
 
-  if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
-    Atemp, gtemp, P = defaultStates()
-    A = hcat( Atemp, Atemp )
-    g = hcat( gtemp, gtemp )
-  end
+  # if ( A[1] < 0 || g[1] < 0 || P[1] < 0 )
+  #   Atemp, gtemp, P = defaultStates()
+  #   A = hcat( Atemp, Atemp )
+  #   g = hcat( gtemp, gtemp )
+  # end
   nS = size(A)[1]
   vrho = [ rho 1-rho ]
       # Vector of weights
