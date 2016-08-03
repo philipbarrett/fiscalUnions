@@ -37,12 +37,16 @@ vho = [ rho, 1-rho ]
 RR = linspace( dw2.Rlow[iS,ib,1][ibprimeidx1], dw2.Rhigh[iS,1], nR )
 WW = [ w_eval( RR[i], chi[1], psi[1], dw2.xlow[iS,ib,1][ibprime],
                   dw2.xhigh[iS,1], A[iS,1], rho ) for i in 1:nR ]
+NN, coeff, err = w_eval_fit( dw2.Rhigh[iS,1], chi[1], psi[1],
+                  dw2.xlow[iS,ib,1][ibprime],
+                  dw2.xhigh[iS,1], A[iS,1], rho )
 UU = [ w_eval( (1+r)*dw2.bgrid[ib] + sum(g[iS,:]) -
                   dw2.bgrid[ibprime] - RR[i],
                   chi[2], psi[2], dw2.xlow[iS,ib,2][ibprime],
                   dw2.xhigh[iS,2], A[iS,2], rho ) for i in 1:nR ]
-plot( layer( x=RR, y=WW, Geom.line ),
-      layer( x=RR, y=UU, Geom.line ) )
+VV = [ w_eval_apx( RR[i], coeff, dw2.Rhigh[iS,1], NN ) for i in 1:nR ]
+plot( layer( x=RR, y=WW, Geom.line, Theme(default_color=colorant"purple") ),
+      layer( x=RR, y=VV, Geom.line, ) )
 
 cfg = ctsfiscalgame( r=0.04, delta=[.95, .95], psi=psi,
                           chi=chi, rho=.5, A=A, g=g, P=P,
@@ -72,6 +76,10 @@ bm = @benchmark R1, R2, W1, W2, dist =
 println(bm)
 
 W = initGame( cfg )
+vbar = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A, true)
+evbar = P * vbar
+
+
 
 pdout = pdPayoffs( cfg, dirs, true )
 pdin = pdPayoffs( cfg, dirs, false )

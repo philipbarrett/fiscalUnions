@@ -44,6 +44,10 @@ type DWLC2
   taulow::Array{Array{Float64,1},3}   # Lower bound on taxes
   tauhigh::Matrix{Float64}            # Upper bound on taxes
 
+  apx_N::Array{Array{Float64,1},2}        # order of approximation
+  apx_coeffs::Array{Array{Float64,1},2}   # order of approximation
+  apx_err::Matrix{Float64}                # order of approximation
+
 end
 
 
@@ -142,9 +146,20 @@ function dwlc2( ; nS::Int=1, nb::Int=1,
   taulow = [ 1 - chi[k]*(1-xlow[i,j,k]).^(1/psi[k]) / A[i,k]
                 for i in 1:nS, j in 1:nb, k in 1:2 ]
       # Range of taxes
-
+  xmin = [ minimum( [ minimum( xlow[iS,ib,k] ) for ib in 1:nb ] )
+              for iS in 1:nS, k in 1:2 ]
+      # The state-dependent minimum for x
+  NN = Array{Array{Float64,1},2}(nS,2)
+  coeff = Array{Array{Float64,1},2}(nS,2)
+  err = zeros(nS,2)
+      # Initiate the approximation of w
+  for iS in 1:nS, k in 1:2
+      NN[iS,k], coeff[iS,k], err[iS,k] =
+                  w_eval_fit( Rhigh[iS,k], chi[k], psi[k],
+                                xmin[iS,k], xhigh[iS,k], A[iS,k], rho )
+  end
   return DWLC2( nS, nb, blim, bgrid, bprimeposs, nposs,
-            xlow, xhigh, Rlow, Rhigh, taulow, tauhigh )
+            xlow, xhigh, Rlow, Rhigh, taulow, tauhigh, NN, coeff, err )
 end
 
 
