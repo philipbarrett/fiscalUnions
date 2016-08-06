@@ -85,3 +85,74 @@ println("R1 = ", getvalue(R1))
 println("R2 = ", getvalue(R2))
 println("v1 = ", getvalue(v1))
 println("v2 = ", getvalue(v2))
+
+
+#############################################################
+
+using JuMP
+using Ipopt
+
+# EnableNLPResolve()
+
+f = (x) -> exp( A * x ) - x
+f1 = (x) -> A * exp( A * x ) - 1.0
+f2 = (x) -> A * A * exp( A * x )
+    # Period objective function
+JuMP.register(:f, 1, f, f1, f2)
+
+A = 1.0
+mod = Model(solver=Ipopt.IpoptSolver(print_level=0))
+@variable(mod, - Inf <= x <= Inf )
+@NLobjective(mod, Min, f(x) )
+status=solve(mod)
+println("x = ", getvalue(x))
+
+A = 2.0
+mod = Model(solver=Ipopt.IpoptSolver(print_level=0))
+@variable(mod, - Inf <= x <= Inf )
+@NLobjective(mod, Min, f(x) )
+status=solve(mod)
+println("x = ", getvalue(x))
+
+f = (x) -> exp( 2 *A * x ) - x
+f1 = (x) -> 2 * A * exp( 2 * A * x ) - 1.0
+f2 = (x) -> 4 * A * A * exp( 2 * A * x )
+
+A = 1.0
+mod = Model(solver=Ipopt.IpoptSolver(print_level=0))
+@variable(mod, - Inf <= x <= Inf )
+@NLobjective(mod, Min, f(x) )
+status=solve(mod)
+println("x = ", getvalue(x))
+
+##### New Session #####
+using JuMP
+using Ipopt
+
+function set_A_sol( A )
+  f = (x) -> exp( A * x ) - x
+  f1 = (x) -> A * exp( A * x ) - 1.0
+  f2 = (x) -> A * A * exp( A * x )
+  # Local redefinition of f
+  try
+    JuMP.register(:f, 1, f, f1, f2)
+  catch e
+    if e.msg == "Operator f has already been defined"
+      ind = pop!( ReverseDiffSparse.univariate_operator_to_id, :f);
+      deleteat!( ReverseDiffSparse.univariate_operators, ind);
+      pop!( ReverseDiffSparse.user_univariate_operator_f, ind);
+      pop!( ReverseDiffSparse.user_univariate_operator_fprime, ind);
+      pop!( ReverseDiffSparse.user_univariate_operator_fprimeprime, ind);
+      JuMP.register(:f, 1, f, f1, f2);
+    end
+  end
+  mod = Model(solver=Ipopt.IpoptSolver(print_level=0))
+  @variable(mod, - Inf <= x <= Inf )
+  @NLobjective(mod, Min, f(x) )
+  status=solve(mod)
+  return getvalue(x)
+end
+
+ans1 = set_A_sol(0.5)
+ans2 = set_A_sol(1.0)
+ans3 = set_A_sol(2.0)

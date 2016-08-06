@@ -5,6 +5,22 @@ Philip Barrett, pobarrett@gmail.com
 Code to approximate the deadweight loss function
 =#
 
+function convex_basis( R::Float64, Rlim::Float64, n::Float64 )
+  return ( ( Rlim ^ ( 1 / n ) * ( 1 - R / ( n * Rlim ) ) -
+                          ( max( Rlim - R, 0 ) ) ^ ( 1 / n ) ) )::Float64
+end
+
+function convex_basis_d( R::Float64, Rlim::Float64, n::Float64 )
+  return (( - Rlim ^ ( 1 / n - 1 ) +
+                  ( max( Rlim - R, 0 ) ) ^ ( 1 / n - 1 ) ) / n)::Float64
+end
+
+function convex_basis_d2( R::Float64, Rlim::Float64, n::Float64 )
+  return (( 1 - 1 / n ) / n *
+                        ( max( Rlim - R, 0 ) ) ^ ( 1 / n - 2 ))::Float64
+end
+
+
 function w_eval_apx( R::Float64, coeff::Vector{Float64}, Rlim::Float64, NN=NaN )
   NN = (isnan(NN[1])) ? (2:length(coeff)) : NN
   if R < 0.0
@@ -15,8 +31,7 @@ function w_eval_apx( R::Float64, coeff::Vector{Float64}, Rlim::Float64, NN=NaN )
     counter = 1
     for n in NN
       counter += 1
-      out += coeff[counter] * ( Rlim ^ ( 1 / n ) * ( 1 - R / ( n * Rlim ) ) -
-                              ( max( Rlim - R, 0 ) ) ^ ( 1 / n ) )
+      out += coeff[counter] * convex_basis( R, Rlim, n )
     end
     return out
   end
@@ -32,8 +47,7 @@ function w_eval_apx_d( R::Float64, coeff::Vector{Float64}, Rlim::Float64, NN=NaN
     counter = 1
     for n in NN
       counter += 1
-      out += coeff[counter] * ( - Rlim ^ ( 1 / n - 1 ) +
-                                ( max( Rlim - R, 0 ) ) ^ ( 1 / n - 1 ) ) / n
+      out += coeff[counter] * convex_basis_d( R, Rlim, n )
     end
     return out
   end
@@ -49,8 +63,7 @@ function w_eval_apx_d2( R::Float64, coeff::Vector{Float64}, Rlim::Float64, NN=Na
     counter = 1
     for n in NN
       counter += 1
-      out += coeff[counter] * ( 1 - 1 / n ) / n *
-                            ( max( Rlim - R, 0 ) ) ^ ( 1 / n - 2 )
+      out += coeff[counter] * convex_basis_d2( R, Rlim, n )
     end
     return out
   end
