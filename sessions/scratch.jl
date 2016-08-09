@@ -58,7 +58,7 @@ using Ipopt
 iS, ib, ibprimeidx1 = 1,1,3
 ibprime = find( dw2.bprimeposs[iS,ib] )[ibprimeidx1]
 idir = 16
-vbar = [ 2.3, 2.3 ]
+vevbar = [ 2.3, 2.3 ]
 
 ibprimeidx = [ find( dw2.bprimeposs[iS,ib] ) for iS in 1:nS, ib in 1:nb ]
 
@@ -96,10 +96,7 @@ t = Model(solver=Ipopt.IpoptSolver(print_level=5))
 #   (1-betta) * ( a1 * pd_1( R1 ) + a2 * pd_2( R2 ) ) +
 #    betta * ( a1 * v1 + a2 * v2 ) )
 @NLobjective(t, Max,
-  (1-betta) * ( a1 * ( dw2.apx_coeffs[iS,1][1] +
-          sum{ dw2.apx_coeffs[iS,1][1+n] *
-              convex_basis( R1, dw2.Rhigh[iS,1], dw2.apx_N[iS,1][n]),
-                              n = 1:length(dw2.apx_N[iS,1]) } )
+  (1-betta) * ( a1 * pd_1( R1 )
               + a2 * pd_2( R2 ) ) +
    betta * ( a1 * v1 + a2 * v2 ) )
 @constraint(t, R1 + R2 + dw2.bgrid[ibprimeidx[iS,ib][ibprime]] ==
@@ -159,14 +156,7 @@ dists, W1, W2, R1, R2, v1, v2 = search_ic( dw2.bgrid[ibprimeidx[iS,ib][ibprime]]
                   dw2.bgrid[ib], [ dw2.Rlow[iS,ib,k][ibprime] for k in 1:2 ],
                   vec( dw2.Rhigh[iS, : ] ), sum(g[iS,:]), rho, r, betta,
                   vec(dw2.apx_coeffs[iS,:]), vec(dw2.apx_N[iS,:]),
-                  dirs, V, 5 )
-
-bprime::Float64, b::Float64,
-                    Rlow::Vector, Rhigh::Vector, sumg::Float64,
-                    rho::Float64, r::Float64, betta::Float64,
-                    apx_coeffs::Array{Array{Float64,1},1},
-                    apx_N::Array{Array{Float64,1},1}, dirs::Matrix,
-                    V::Polygon, print_level::Int=0
+                  dirs, V, vevbar, 0 )
 
 
 ############################################################
@@ -200,13 +190,26 @@ W = initGame( cfg )
 vbar = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A, true)
 evbar = P * vbar
 
-
-
 pdout = pdPayoffs( cfg, dirs, true )
+## TODO: Add approximation here.
 pdin = pdPayoffs( cfg, dirs, false )
 
-updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.betta )
-updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.betta, false )
+updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
+                          cfg.rho, cfg.r, cfg.betta )
+
+
+econt = expectedVals( W, P, dirs )
+VV = search_ic( dw2.bgrid[ibprimeidx[iS,ib][ibprime]],
+                      dw2.bgrid[ib], [ dw2.Rlow[iS,ib,k][ibprime] for k in 1:2 ],
+                      vec( dw2.Rhigh[iS, : ] ), cfg.gSum[iS], rho, r, betta,
+                      vec(dw2.apx_coeffs[iS,:]), vec(dw2.apx_N[iS,:]),
+                      dirs, econt[iS,ib], vec(evbar[iS,:]), 5,
+                      "outer" )
+updateout_ic = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
+                            cfg.rho, cfg.r, cfg.betta, true, evbar )
+updatein_ic = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
+                            cfg.rho, cfg.r, cfg.betta, false, evbar )
+updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.gSum, cfg.betta, false )
 
 ib = 19
 polyPlot([W[1,ib], pdout[1,ib]..., pdout[2,ib]..., updateout[1,ib],

@@ -11,9 +11,8 @@ using Polygons
 using Ipopt
 
 function dirMax( bprime::Float64, b::Float64, chi::Vector, psi::Vector,
-                  x1::Vector, x2::Vector, R1bds::Vector,
-                  a::Vector, sumg::Float64,
-                  rho::Float64, r::Float64, dir::Vector,
+                  x1::Vector, x2::Vector, R1bds::Vector,a::Vector,
+                  sumg::Float64, rho::Float64, r::Float64, dir::Vector,
                   verbose::Bool=false )
   obj(R1) = - ( dir[1] * rho *
           w_eval( R1, chi[1], psi[1], x1[1], x2[1], a[1], rho, verbose ) +
@@ -76,7 +75,8 @@ function search_ic( bprime::Float64, b::Float64,
                     rho::Float64, r::Float64, betta::Float64,
                     apx_coeffs::Array{Array{Float64,1},1},
                     apx_N::Array{Array{Float64,1},1}, dirs::Matrix,
-                    V::Polygon, print_level::Int=0 )
+                    V::Polygon, evbar::Vector, print_level::Int=0,
+                    output::ASCIIString="all" )
 
   ## 1. Create and register the period payoff functions
   pd_1( R ) = w_eval_apx( R, apx_coeffs[1], Rhigh[1], apx_N[1] )::Float64
@@ -90,11 +90,11 @@ function search_ic( bprime::Float64, b::Float64,
     JuMP.register(:pd_1, 1, pd_1, pd_1_d, pd_1_d2)
   catch e
     if e.msg == "Operator pd_1 has already been defined"
-      ind = pop!( ReverseDiffSparse.univariate_operator_to_id, :pd_1);
-      deleteat!( ReverseDiffSparse.univariate_operators, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_f, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_fprime, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_fprimeprime, ind);
+      ind = pop!( ReverseDiffSparse.univariate_operator_to_id, :pd_1)
+      deleteat!( ReverseDiffSparse.univariate_operators, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_f, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_fprime, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_fprimeprime, ind)
       JuMP.register(:pd_1, 1, pd_1, pd_1_d, pd_1_d2);
     end
   end
@@ -102,12 +102,12 @@ function search_ic( bprime::Float64, b::Float64,
     JuMP.register(:pd_2, 1, pd_2, pd_2_d, pd_2_d2)
   catch e
     if e.msg == "Operator pd_2 has already been defined"
-      ind = pop!( ReverseDiffSparse.univariate_operator_to_id, :pd_2);
-      deleteat!( ReverseDiffSparse.univariate_operators, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_f, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_fprime, ind);
-      pop!( ReverseDiffSparse.user_univariate_operator_fprimeprime, ind);
-      JuMP.register(:pd_2, 1, pd_2, pd_2_d, pd_2_d2);
+      ind = pop!( ReverseDiffSparse.univariate_operator_to_id, :pd_2)
+      deleteat!( ReverseDiffSparse.univariate_operators, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_f, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_fprime, ind)
+      pop!( ReverseDiffSparse.user_univariate_operator_fprimeprime, ind)
+      JuMP.register(:pd_2, 1, pd_2, pd_2_d, pd_2_d2)
     end
   end
       # Register the functions
@@ -119,36 +119,72 @@ function search_ic( bprime::Float64, b::Float64,
   uni_mod = [ Model(solver=Ipopt.IpoptSolver(print_level=print_level)) for i in 1:2 ]
       # Initialize the model
   for i in 1:2
-    @variable( uni_mod[i], Rlow[1] <= R1 <= Rhigh[1] - 1e-9 )
-    @variable( uni_mod[i], Rlow[2] <= R2 <= Rhigh[2] - 1e-9 )
+    @variable( uni_mod[i], Rlow[1] <= R1 <= Rhigh[1],
+                            start = (i==1) ? Rhigh[1] : Rlow[1] )
+    @variable( uni_mod[i], Rlow[2] <= R2 <= Rhigh[2],
+                            start = (i==2) ? Rhigh[2] : Rlow[2] )
     @variable( uni_mod[i], v1 )
     @variable( uni_mod[i], v2 )
         # The variables
     if i == 1
-      @objective(uni_mod[i], Max, R1 )
+      @NLobjective(uni_mod[i], Min,
+          ( 1 - rho ) * ( betta * pd_2( R2 ) + ( 1 - betta ) * v2 ) )
     else
-      @objective(uni_mod[i], Max, R2 )
+      @NLobjective(uni_mod[i], Min,
+          rho * ( betta * pd_1( R1 ) + ( 1 - betta ) * v1 ) )
     end
-        # Objective is to maximize either R1 or R2
-    @constraint(uni_mod[i], R1 + R2 + bprime == b + sumg )
+        # Objective is to minimize the loss for R2 or R1
+    @constraint(uni_mod[i], R1 + R2 + bprime == ( 1 + r ) * b + sumg )
         # Budget constraint
     @constraint(uni_mod[i], V.dirs * [ v1, v2 ] .<= V.dists )
         # Continuation set
     @NLconstraint( uni_mod[i],
           ( 1 - betta ) * rho * ( pd_1(R1) - pd_1(Rlow[1]) ) <=
-                                                      betta * ( vbar[1] - v1 ) )
+                                      betta * ( evbar[1] - v1 ) )
     @NLconstraint( uni_mod[i],
           ( 1 - betta ) * ( 1 - rho ) * ( pd_2(R2) - pd_2(Rlow[2]) ) <=
-                                                      betta * ( vbar[2] - v2 ) )
+                                      betta * ( evbar[2] - v2 ) )
         # Incentive compatibility constraints
-    status = solve(uni_mod[i])
+    status = solve(uni_mod[i], suppress_warnings=false)
         # Solve the model
     if status != :Optimal
-      warn("Unidirectional problem #", i, " failing")
-      println("b = ", b)
-      println("bprime = ", bprime)
-      println("vbar = ", vbar)
-      print(uni_mod[i])
+      R1_check = getvalue(R1)
+      R2_check = getvalue(R2)
+      v1_check = getvalue(v1)
+      v2_check = getvalue(v2)
+          # Get the values
+      check = [ true, true, true, true ]
+      check[1] = ( abs( R1_check + R2_check + bprime - ( 1 + r ) * b + sumg ) < 1e-10 )
+      check[2] = all( V.dirs * [ v1_check, v2_check ] .<= V.dists )
+      check[3] = ( ( 1 - betta ) * rho * ( pd_1(R1_check) - pd_1(Rlow[1]) ) <=
+                                  betta * ( evbar[1] - v1_check ) )
+      check[4] = ( ( 1 - betta ) * rho * ( pd_2(R2_check) - pd_2(Rlow[2]) ) <=
+                                  betta * ( evbar[2] - v2_check ) )
+      if all(check)
+        warn("Possible sub-optimality in unidirectional problem #", i,
+             "\nConstraints all hold ok at solution though.")
+      else
+        minv = minimum(V.pts,1)
+        warn("Unidirectional problem #", i, " failing")
+        println( "check(s) ", find(check), " failing")
+        println("a = ", dirs[i,:])
+        println("b = ", b)
+        println("bprime = ", bprime)
+        println("sumg = ", sumg)
+        println("evbar = ", evbar)
+        println("sum(Rhigh) = ", sum(Rhigh) )
+        println("sum(Rlow) = ", sum(Rlow) )
+        println("b + sumg - bprime = ", b + sumg - bprime )
+        println("betta * ( evbar[1] - min(v1) ) = ",
+                      betta * ( evbar[1] - minv[1] ) )
+        println("( 1 - betta ) * rho * ( pd_1(Rhigh[1]) - pd_1(Rlow[1]) ) = ",
+                      ( 1 - betta ) * rho * ( pd_1(Rhigh[1]) - pd_1(Rlow[1]) ) )
+        println("betta * ( evbar[2] - min(v2) ) = ",
+                      betta * ( evbar[2] - minv[2] ) )
+        println("( 1 - betta ) * rho * ( pd_1(Rhigh[2]) - pd_1(Rlow[2]) ) = ",
+                      ( 1 - betta ) * rho * ( pd_1(Rhigh[2]) - pd_1(Rlow[2]) ) )
+        print(uni_mod[i])
+      end
     end
         # Check that the model solves
     uni_sols[i,1] = getvalue(R1)
@@ -164,8 +200,11 @@ function search_ic( bprime::Float64, b::Float64,
   @NLparameter( convex_mod, a1 == dirs[1,1] )
   @NLparameter( convex_mod, a2 == dirs[1,2] )
       # Initialize the serach directions
-  @variable( convex_mod, Rlow[1] <= R1 <= Rhigh[1] - 1e-9 )
-  @variable( convex_mod, Rlow[2] <= R2 <= Rhigh[2] - 1e-9 )
+  Rstart = ( Rlow + Rhigh ) / 2
+  @variable( convex_mod, Rlow[1] <= R1 <= Rhigh[1],
+                              start = Rstart[1] )
+  @variable( convex_mod, Rlow[2] <= R2 <= Rhigh[2],
+                              start = Rstart[2] )
   @variable( convex_mod, v1 )
   @variable( convex_mod, v2 )
       # The variables
@@ -173,14 +212,16 @@ function search_ic( bprime::Float64, b::Float64,
     (1-betta) * ( a1 * rho * pd_1( R1 ) + a2 * ( 1 - rho ) * pd_2( R2 ) ) +
                     betta * ( a1 * v1 + a2 * v2 ) )
       # The objective function
+  @constraint(convex_mod, R1 + R2 + bprime == ( 1 + r ) * b + sumg )
+      # Budget constraint
   @constraint(convex_mod, V.dirs * [ v1, v2 ] .<= V.dists )
       # Continuation set
   @NLconstraint( convex_mod,
         ( 1 - betta ) * rho * ( pd_1(R1) - pd_1(Rlow[1]) ) <=
-                                                    betta * ( vbar[1] - v1 ) )
+                                                    betta * ( evbar[1] - v1 ) )
   @NLconstraint( convex_mod,
         ( 1 - betta ) * ( 1 - rho ) * ( pd_2(R2) - pd_2(Rlow[2]) ) <=
-                                                    betta * ( vbar[2] - v2 ) )
+                                                    betta * ( evbar[2] - v2 ) )
       # Incentive compatibility constraints
 
   ## 4. Initiate and fill the output
@@ -199,14 +240,81 @@ function search_ic( bprime::Float64, b::Float64,
       setvalue( a1, dirs[i,1] )
       setvalue( a2, dirs[i,2] )
           # Change the search direction in the JuMP problem
-      status = solve(convex_mod)
+      status = solve(convex_mod, suppress_warnings=false )
           # Solve the model
       if status != :Optimal
-        warn("Convex problem #", i, " failing")
-        println("b = ", b)
-        println("bprime = ", bprime)
-        println("vbar = ", vbar)
-        print(convex_mod)
+        R1_check = getvalue(R1)
+        R2_check = getvalue(R2)
+        v1_check = getvalue(v1)
+        v2_check = getvalue(v2)
+            # Get the values
+        check = [ false, false, false, false ]
+        check[1] = ( abs( R1_check + R2_check + bprime - ( 1 + r ) * b - sumg ) < 1e-10 )
+        check[2] = all( V.dirs * [ v1_check, v2_check ] - V.dists .<= 1e-08 )
+        check[3] = ( ( 1 - betta ) * rho * ( pd_1(R1_check) - pd_1(Rlow[1]) ) <=
+                                    betta * ( evbar[1] - v1_check ) )
+        check[4] = ( ( 1 - betta ) * (1-rho) * ( pd_2(R2_check) - pd_2(Rlow[2]) ) <=
+                                    betta * ( evbar[2] - v2_check ) )
+        if all(check)
+          # warn("Possible sub-optimality in convex problem #", i,
+          #      "\nConstraints all hold at solution though.")
+        else
+          minv = minimum(V.pts,1)
+          warn("Convex problem #", i, " failing")
+          println( "\ncheck(s) ", find(!check), " failing")
+          println("*********************************************")
+          println("Variables:")
+          println("*********************************************")
+          println("b = ", b)
+          println("bprime = ", bprime)
+          println("sumg = ", sumg)
+          println("evbar = ", evbar)
+          println("[R1,R2,v1,v2] = ", (R1_check, R2_check, v1_check, v2_check) )
+          println("*********************************************")
+          println("Extreme values")
+          println("*********************************************")
+          println("Rhigh = ", Rhigh )
+          println("Rlow = ", Rlow )
+          println("sum(Rhigh) = ", sum(Rhigh) )
+          println("sum(Rlow) = ", sum(Rlow) )
+          println("( 1 - betta ) * rho * ( pd_1(Rhigh[1]) - pd_1(Rlow[1]) ) = ",
+                        ( 1 - betta ) * rho * ( pd_1(Rhigh[1]) - pd_1(Rlow[1]) ) )
+          println("betta * ( evbar[1] - min(v1) ) = ",
+                        betta * ( evbar[1] - minv[1] ) )
+          println("( 1 - betta ) * (1-rho) * ( pd_1(Rhigh[2]) - pd_1(Rlow[2]) ) = ",
+                        ( 1 - betta ) * (1-rho) * ( pd_1(Rhigh[2]) - pd_1(Rlow[2]) ) )
+          println("betta * ( evbar[2] - min(v2) ) = ",
+                        betta * ( evbar[2] - minv[2] ) )
+          println("*********************************************")
+          println("Check 1")
+          println("*********************************************")
+          println("R1 + R2 = ", R1_check + R2_check )
+          println("(1+r)*b + sumg - bprime = ", (1+r)*b + sumg - bprime )
+          println("      err = ", R1_check + R2_check - ((1+r)*b + sumg - bprime))
+          println("*********************************************")
+          println("Check 2")
+          println("*********************************************")
+          v_err = V.dirs * [ v1_check, v2_check ] - V.dists
+              # Should be negative
+          println("Max err on v = ", maximum(v_err) )
+          i_max = indmax(v_err)
+          println("Err on boundary with normal = ", vec(V.dirs[i_max,:]) )
+          println("*********************************************")
+          println("Check 3")
+          println("*********************************************")
+          println("( 1 - betta ) * rho * ( pd_1(R1) - pd_1(Rlow[1]) ) = ",
+                        ( 1 - betta ) * rho * ( pd_1(R1_check) - pd_1(Rlow[1]) ) )
+          println("betta * ( evbar[1] - v1 ) = ",
+                        betta * ( evbar[1] - v1_check ) )
+          println("*********************************************")
+          println("Check 4")
+          println("*********************************************")
+          println("( 1 - betta ) * rho * ( pd_2(R2) - pd_1(Rlow[2]) ) = ",
+                        ( 1 - betta ) * rho * ( pd_2(R2_check) - pd_1(Rlow[2]) ) )
+          println("betta * ( evbar[2] - v2 ) = ",
+                        betta * ( evbar[2] - v2_check ) )
+          # print(convex_mod)
+        end
       end
           # Check that the model solves
       # objout[i] = getobjectivevalue(convex_mod)
@@ -259,6 +367,11 @@ function search_ic( bprime::Float64, b::Float64,
                     for i in 1:ndir ]
   W2out = [ ((1-betta) * rho * pd_2( R2out[i] ) + betta * v2out[i])::Float64
                     for i in 1:ndir ]
-
-  return objout, W1out, W2out, R1out, R2out, v1out, v2out
+  if output == "outer"
+    return Polygon( dirs=dirs, dists=objout )
+  elseif output == "inner"
+    return Polygon( pts = hcat( W1out, W2out ) )
+  else
+    return objout, W1out, W2out, R1out, R2out, v1out, v2out
+  end
 end
