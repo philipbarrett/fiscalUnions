@@ -1,7 +1,7 @@
 using BenchmarkTools
 
 nS = 3
-nb = 50
+nb = 30
 A = [ 3.0 3.0
       3.0 3.0
       3.0 3.0 ]
@@ -168,22 +168,18 @@ cfg = ctsfiscalgame( r=0.04, delta=[.95, .95], psi=psi,
 
 
 R1, R2, W1, W2, dist =
-      dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
-        cfg.bgrid[ib], chi, psi,
-        [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
-        vec( cfg.dw.xhigh[iS,:]),
-        [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
-        vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
-        vec(dirs[idir,:]), false )
+dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
+  cfg.bgrid[ib], [ cfg.dw.Rlow[iS,ib,i][ibprimeidx[iS,ib][ibprime]] for i in 1:2 ],
+  vec( cfg.dw.Rhigh[iS, :] ), cfg.gSum[iS], cfg.rho, cfg.r, vec(dirs[idir,:]),
+  [ cfg.dw.apx_coeffs[iS,i]::Array{Float64,1} for i in 1:2 ],
+  [ cfg.dw.apx_N[iS,i]::Array{Float64,1} for i in 1:2 ], true )
 
 bm = @benchmark R1, R2, W1, W2, dist =
   dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
-    cfg.bgrid[ib], chi, psi,
-    [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
-    vec( cfg.dw.xhigh[iS,:]),
-    [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
-    vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
-    vec(dirs[idir,:]), false )
+    cfg.bgrid[ib], [ cfg.dw.Rlow[iS,ib,i][ibprimeidx[iS,ib][ibprime]] for i in 1:2 ],
+    vec( cfg.dw.Rhigh[iS, :] ), cfg.gSum[iS], cfg.rho, cfg.r, vec(dirs[idir,:]),
+    [ cfg.dw.apx_coeffs[iS,i]::Array{Float64,1} for i in 1:2 ],
+    [ cfg.dw.apx_N[iS,i]::Array{Float64,1} for i in 1:2 ] )
 println(bm)
 
 W = initGame( cfg )
@@ -191,7 +187,7 @@ vbar = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A, true)
 evbar = P * vbar
 
 pdout = pdPayoffs( cfg, dirs, true )
-## TODO: Add approximation here.
+
 pdin = pdPayoffs( cfg, dirs, false )
 
 updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,

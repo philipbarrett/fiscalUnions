@@ -122,26 +122,32 @@ function pdPayoffs( cfg::CtsFiscalGame, dirs::Matrix, outer::Bool=true )
   if outer
     dists = [ [ [
               dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
-                cfg.bgrid[ib], chi, psi,
-                [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
-                vec( cfg.dw.xhigh[iS,:]),
-                [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
-                vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
-                vec(dirs[idir,:]) )[5] for idir in 1:ndirs ]
+                cfg.bgrid[ib],
+                [ cfg.dw.Rlow[iS,ib,i][ibprime] for i in 1:2 ],
+                vec( cfg.dw.Rhigh[iS, :] ), cfg.gSum[iS], cfg.rho, cfg.r,
+                vec(dirs[idir,:]),
+                [ cfg.dw.apx_coeffs[iS,i]::Array{Float64,1} for i in 1:2 ],
+                [ cfg.dw.apx_N[iS,i]::Array{Float64,1} for i in 1:2 ]
+                )[5] for idir in 1:ndirs ]
                 for ibprime in 1:cfg.dw.nposs[iS,ib] ]
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
+                # vec( cfg.dw.xhigh[iS,:]),
+                # [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
+                # vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
+                # vec(dirs[idir,:]) )[5] for idir in 1:ndirs ]
     ret = [ [ Polygon( dirs=dirs, dists=dists[iS,ib][ibprime] )::Polygon
                 for ibprime in 1:cfg.dw.nposs[iS,ib] ]::Array{Polygon,1}
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
   else
     ptsArray = [ [ [
               dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
-                cfg.bgrid[ib], chi, psi,
-                [ cfg.dw.xlow[iS,ib,i][ibprime] for i in 1:2 ],
-                vec( cfg.dw.xhigh[iS,:]),
-                [ cfg.dw.Rlow[iS,ib,1][ibprime], cfg.dw.Rhigh[iS,1] ],
-                vec(cfg.A[iS,:]), cfg.gSum[iS], cfg.rho, cfg.r,
-                vec(dirs[idir,:]) )[3:4] for idir in 1:ndirs ]
+                cfg.bgrid[ib],
+                [ cfg.dw.Rlow[iS,ib,i][ibprime] for i in 1:2 ],
+                vec( cfg.dw.Rhigh[iS, :] ), cfg.gSum[iS], cfg.rho, cfg.r,
+                vec(dirs[idir,:]),
+                [ cfg.dw.apx_coeffs[iS,i]::Array{Float64,1} for i in 1:2 ],
+                [ cfg.dw.apx_N[iS,i]::Array{Float64,1} for i in 1:2 ]
+                )[3:4] for idir in 1:ndirs ]
                 for ibprime in 1:cfg.dw.nposs[iS,ib] ]
                 for iS in 1:cfg.nS, ib in 1:cfg.nb ]
     pts =  [ [ [ ptsArray[iS,ib][ibprime][idir][i]::Float64
