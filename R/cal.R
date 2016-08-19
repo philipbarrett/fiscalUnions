@@ -436,7 +436,7 @@ g.bar.joint.chk <- g.bar * A.bar.joint / A.bar * c(rho, 1-rho )
 if(!all( g.bar.joint == g.bar.joint.chk ) ) warning( 'g.bar.joint check fails' )
     # Scaling
 T.vals.joint <- exp(Z) * ( rep(1,nrow(Z)) %*% t(c( A.bar.joint, g.bar.joint ) ) )
-
+T.vals <- T.vals.joint * ( rep(1,nrow(Z)) %*% t(c( A.bar / A.bar.joint, g.bar / g.bar.joint ) ) )
 
 ## 8. Interest rates ##
 rr <- mean(as.matrix(real.int[,cts])) / 100
@@ -447,19 +447,28 @@ rr.diff.ave <- c( abs = mean(abs(r.diff)), mean=mean(r.diff),
     # The average difference in the real interest rate
 
 ## 9. Debt levels ##
-mu.debt.t <- apply( debt.gdp[, cts], 2, mean, na.rm=TRUE )
+mu.debt <- apply( debt.gdp[, cts], 2, mean, na.rm=TRUE )
     # Mean debt
 if( 'Germany' %in% cts ){
   other <- cts[ cts != 'Germany' ]
-  mu.debt.t['Germany'] <- mean( debt.gdp$Germany, na.rm=TRUE ) * mean( debt.gdp[, other ], na.rm=T ) / 
+  mu.debt['Germany'] <- mean( debt.gdp$Germany, na.rm=TRUE ) * mean( debt.gdp[, other ], na.rm=T ) / 
     mean( debt.gdp[ !is.na( debt.gdp$Germany ), other ], na.rm=T )
 }
 
 
 ### 10. Save the output ###
-save( T.p.joint, T.vals.joint, A.bar, g.bar, A.bar.joint, g.bar.joint, 
-      rr, n.Z, rho, file = save.file )
+save( T.p.joint, T.vals.joint, T.vals, A.bar, g.bar, A.bar.joint, g.bar.joint, 
+      rr, n.Z.joint, rho, file = save.file )
+rownames(T.vals) <- NULL
+T.vals.copy <- matrix( 0, nrow=n.Z.joint, ncol=4 )
+for( i in 1:length(T.vals.copy) ) T.vals.copy[i] <- T.vals[i]
+T.vals <- T.vals.copy
+T.vals.joint.copy <- 0 * T.vals
+for( i in 1:length(T.vals.joint.copy) ) T.vals.joint.copy[i] <- T.vals.joint[i]
+T.vals.joint <- T.vals.joint.copy
 
+save( T.p.joint, T.vals.joint, T.vals, A.bar, g.bar, A.bar.joint, g.bar.joint, rr, 
+      n.Z.joint, mu.debt, rho, file = save.file )
 
 
 
