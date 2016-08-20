@@ -187,7 +187,6 @@ vbar = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A, true)
 evbar = P * vbar
 
 pdout = pdPayoffs( cfg, dirs, true )
-
 pdin = pdPayoffs( cfg, dirs, false )
 
 updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,

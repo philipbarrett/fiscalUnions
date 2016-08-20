@@ -75,42 +75,15 @@ sim_cor = [ cor(indiv_sim[i]) for i in 1:2 ]
 sim_check = [ indiv_sim[i][:,2] - indiv_sim[i][:,5] -
       indiv_sim[i][:,4] + ( 1 + indiv_am[i].r ) *
       indiv_sim[i][:,3] for i in 1:2 ]
-#
-#
-# # play([sin(x) for x=0:0.03*pi:441])
-#
-# # gc_sd = [ sim_sd[i][4] for i in 1:2 ]
-# # debt_mu = [ sim_mu[i][2] for i in 1:2 ]
-# #
-# sim_debt_max = [ maximum( indiv_sim[i][:,2] ) for i in 1:2 ]
-# grid_debt_max = [ maximum(indiv_as[i].am.bgrid ) for i in 1:2 ]
-# grid_ok = all( sim_debt_max .< grid_debt_max )
 
-prs_m = prsModel( r=rr, delta=delta[1], psi=[ psi psi ], chi=[ chi chi ],
-                A=states_jt[:,1:2], g=states_jt[:,3:4], P=trans,
-                nR=[nR nR], rho=rho, lam=.5,
-                nb=nb )
+### 2. Two countries, rational expectations equilibrium ###
+ndir=24
+cfg = ctsfiscalgame( r=rr, delta=[1/rr 1/rr], psi=[psi, psi],
+                          chi=vec(chi), rho=rho, A=states_jt[:,1:2], g=states_jt[:,3:4],
+                          P=trans, nb=nb, bmin=0.0, ndirs=ndir,
+                          par=false )
 
-# prs_s = solve_pm( prs_m )
-# prs_sim = sim_pm( prs_s )
-#
-# mu_prs = mean( prs_sim, 1 ) ./ [ 1+chi 1+chi 1+chi 1 1 ]
-# sd_prs = std( prs_sim, 1 ) ./ [ 1+chi 1+chi 1+chi 1 1 ]
+eq = eqm( cfg, 150 )
 
 
-
-
-# prs_m = prsModel( )
-# prs_s = solve_am( prs_m )
-# prs_sim = sim_am( prs_s )
-#
-# plot( asim[1:200,2] )
-# plot( asim[1:200,4] )
-# scatter( asim[1:200,2 ], asim[1:200,4 ] )
-# scatter( asim[1:200,2 ], asim[1:200,4 ] )
-#
-# cor( asim[1:(end-1),2], asim[2:(end),2])
-# cor( asim[1:(end-1),4], asim[2:(end),4])
-#
-# mean( asim, 1 )
-# mean( prs_sim, 1 ) / 2
+### 3. Two countries, SPE ###
