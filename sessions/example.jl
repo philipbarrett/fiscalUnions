@@ -9,12 +9,12 @@ include("../julia/ctsSol.jl")
 
 nS = 3
 nb = 50
-A = [ 3.01 3.0
+A = [ 3.09 2.91
       3.0  3.0
-      3.0  3.01 ]
-g =  [ .1  .1
-       .0  .0
-       .1  .1 ]
+      2.91  3.09 ]
+g =  [ .1  .2
+       .1  .1
+       .2  .1 ]
     # Need a low-g state so that blim can be escaped somehow
 psi = [ .75, .75 ]
 chi = [ 8.0, 8.0 ]
@@ -27,12 +27,12 @@ P = [ .6 .2 .2
 betta = 1 / ( 1 + r )
 ndir = 48
 
-cfg = ctsfiscalgame( r=0.04, delta=[.95, .95], psi=psi,
+cfg = ctsfiscalgame( r=r, delta=[.95, .95], psi=psi,
                           chi=chi, rho=.5, A=A, g=g, P=P,
                           nb=nb, bmin=0.0, ndirs=ndir,
                           par=false )
 
-eq = eqm( cfg, 150 )
+eq = eqm( cfg, 10 )
 
 
 

@@ -120,6 +120,21 @@ function pdPayoffs( cfg::CtsFiscalGame, dirs::Matrix, outer::Bool=true )
       # Array of indices for bprime
 
   if outer
+
+    # for iS in 1:cfg.nS, ib in 1:cfg.nb
+    #   for ibprime in 1:cfg.dw.nposs[iS,ib], idir in 1:ndirs
+    #     println( "(iS,ib,ibprime,idir)=", (iS,ib,ibprime,idir) )
+    #     dm = dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
+    #       cfg.bgrid[ib],
+    #       [ cfg.dw.Rlow[iS,ib,i][ibprime] for i in 1:2 ],
+    #       vec( cfg.dw.Rhigh[iS, :] ), cfg.gSum[iS], cfg.rho, cfg.r,
+    #       vec(dirs[idir,:]),
+    #       [ cfg.dw.apx_coeffs[iS,i]::Array{Float64,1} for i in 1:2 ],
+    #       [ cfg.dw.apx_N[iS,i]::Array{Float64,1} for i in 1:2 ],
+    #       false )[5]
+    #   end
+    # end
+
     dists = [ [ [
               dirMax( cfg.bgrid[ibprimeidx[iS,ib][ibprime]],
                 cfg.bgrid[ib],

@@ -37,14 +37,14 @@ function dirMax( bprime::Float64, b::Float64,
     println("Rlow = ", Rlow )
     println("Rhigh = ", Rhigh )
     println("obj(Rlow[1]) = ", obj(Rlow[1]) )
-    println("obj(Rhigh[2]) = ", obj(Rhigh[2]) )
+    println("obj(Rhigh[2]) = ", obj(Rhigh[1]) )
   end
 
   ### FIND OPTIMAL REVENUES FOR CTY 1 ###
   if (dir[1] < 0) & (dir[2] < 0)
     # Minimize joint deadweight losses
     # Interior convex optimization problem
-    res = optimize( obj, Rlow[1], Rhigh[2] )
+    res = optimize( obj, Rlow[1], Rhigh[1] )
         # The result
     R1 = (res.minimum)::Float64
   elseif (dir[1] > 0) & (dir[2] > 0)
