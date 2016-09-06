@@ -25,14 +25,29 @@ P = [ .6 .2 .2
       .2 .6 .2
       .2 .2 .6 ]
 betta = 1 / ( 1 + r )
-ndir = 48
+ndir = 24
 
 cfg = ctsfiscalgame( r=r, delta=[.95, .95], psi=psi,
                           chi=chi, rho=.5, A=A, g=g, P=P,
                           nb=nb, bmin=0.0, ndirs=ndir,
                           par=false )
 
-eq = eqm( cfg, 10 )
+
+# Try one iteration
+dirs = hcat( [ cos(i*2*pi/ndir )::Float64 for i in 1:ndir ] ,
+             [ sin(i*2*pi/ndir )::Float64 for i in 1:ndir ] )
+W = initGame( cfg )
+    # Initiate payoffs
+pdout = pdPayoffs( cfg, dirs, true )
+pdin = pdPayoffs( cfg, dirs, false )
+    # period payoffs
+updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
+                          cfg.rho, cfg.r, cfg.betta )
+updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.gSum,
+                          cfg.rho, cfg.r, cfg.betta, false )
+
+eqout = eqm( cfg, 10, false, false, pdout, W )
+eqin = eqm( cfg, 10, false, false, pdin, W )
 
 
 
