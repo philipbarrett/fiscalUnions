@@ -10,22 +10,13 @@ using JuMP
 using Polygons
 using Ipopt
 
-# function dirMax( bprime::Float64, b::Float64, chi::Vector, psi::Vector,
-#                   x1::Vector, x2::Vector, R1bds::Vector,a::Vector,
-#                   sumg::Float64, rho::Float64, r::Float64, dir::Vector,
-#                   verbose::Bool=false )
-  # obj(R1) = - ( dir[1] * rho *
-  #         w_eval( R1, chi[1], psi[1], x1[1], x2[1], a[1], rho, verbose ) +
-  #               dir[2] * (1-rho) *
-  #         w_eval( (1+r)*b + sumg - bprime - R1, chi[2], psi[2], x1[2],
-  #         x2[2], a[2], 1-rho, verbose ) )::Float64
-      # The objective function
-
 function dirMax( bprime::Float64, b::Float64,
                   Rlow::Vector, Rhigh::Vector, sumg::Float64,
                   rho::Float64, r::Float64, dir::Vector,
                   apx_coeffs::Array{Array{Float64,1},1},
                   apx_N::Array{Array{Float64,1},1}, verbose::Bool=false )
+# Computes the maximum period payoff in a given direction
+
   obj(R1) = - ( dir[1] * rho *
           w_eval_apx( R1, apx_coeffs[1], Rhigh[1], apx_N[1] ) +
                 dir[2] * (1-rho) *
@@ -57,7 +48,7 @@ function dirMax( bprime::Float64, b::Float64,
         # The index of the greater bound.
         # NB: Looks wrong way round, but remember that there is a negative
         # *in* the objective function
-    R1 = (ibd==1) ? Rlow[1]::Float64 : Rhigh[2]::Float64
+    R1 = (ibd==1) ? Rlow[1]::Float64 : Rhigh[1]::Float64
   elseif (dir[1] > 0) & (dir[2] < 0)
     # Minimize cty 2 losses, maximize cty 1
     R1 = Rhigh[1]::Float64
@@ -70,8 +61,8 @@ function dirMax( bprime::Float64, b::Float64,
 
   R2 = ((1+r)*b + sumg - bprime - R1)::Float64
       # Country 2 revenue
-  W1 = rho *   w_eval_apx( R1, apx_coeffs[1], Rhigh[1], apx_N[1] )::Float64
-  W2 =(1-rho) *   w_eval_apx( R2, apx_coeffs[2], Rhigh[2], apx_N[2] ) ::Float64
+  W1 = rho * w_eval_apx( R1, apx_coeffs[1], Rhigh[1], apx_N[1] )::Float64
+  W2 = (1-rho) * w_eval_apx( R2, apx_coeffs[2], Rhigh[2], apx_N[2] ) ::Float64
       # Welfare
   dist = - obj(R1)::Float64
       # Distance in search direction
@@ -262,14 +253,14 @@ function search_ic( bprime::Float64, b::Float64,
             # Get the values
         check = [ false, false, false, false ]
         check[1] = ( abs( R1_check + R2_check + bprime - ( 1 + r ) * b - sumg ) < 1e-10 )
-        check[2] = all( V.dirs * [ v1_check, v2_check ] - V.dists .<= 1e-08 )
+        check[2] = all( V.dirs * [ v1_check, v2_check ] - V.dists .<= 1e-06 )
         check[3] = ( ( 1 - betta ) * rho * ( pd_1(R1_check) - pd_1(Rlow[1]) ) <=
                                     betta * ( evbar[1] - v1_check ) )
         check[4] = ( ( 1 - betta ) * (1-rho) * ( pd_2(R2_check) - pd_2(Rlow[2]) ) <=
                                     betta * ( evbar[2] - v2_check ) )
         if all(check)
-          # warn("Possible sub-optimality in convex problem #", i,
-          #      "\nConstraints all hold at solution though.")
+          warn("Possible sub-optimality in convex problem #", i,
+               "\nConstraints all hold at solution though.")
         else
           minv = minimum(V.pts,1)
           warn("Convex problem #", i, " failing")

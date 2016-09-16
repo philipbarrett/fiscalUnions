@@ -125,12 +125,11 @@ function eqm( cfg::CtsFiscalGame, maxiter::Int=200, outer::Bool=true,
   while (it <= maxiter) & (hdiff > tol)
     println("    Iteration ", it )
     if IC
-      ##### THIS PART NOT WORKNG YET
-      w_new = valsUpdate( w_old, pd, cfg.P, dirs, cfg.dw, cfg.betta, outer, vdev )
-      ############################33
+      w_new = valsUpdate( w_old, pd, cfg.P, dirs, cfg.dw, cfg.gSum,
+                                cfg.rho, cfg.r, cfg.betta, outer, vdev )
     else
       w_new = valsUpdate( w_old, pd, cfg.P, dirs, cfg.dw, cfg.gSum,
-                                cfg.rho, cfg.r, cfg.betta )
+                                cfg.rho, cfg.r, cfg.betta, outer )
     end
     hdiff = maximum( hausdorff( w_old, w_new ) )
     println("      Normalized Hausdorff distance = ", hdiff )
