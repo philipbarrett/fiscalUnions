@@ -40,7 +40,7 @@ W = initGame( cfg )
     # Initiate payoffs
 pdout = pdPayoffs( cfg, dirs, true )
 pdin = pdPayoffs( cfg, dirs, false )
-    # Period payoffs.  Outer approx still VERY WRONG :(
+    # Period payoffs.  Outer approx now good! :)
 updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
                           cfg.rho, cfg.r, cfg.betta )
 updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.gSum,
@@ -48,9 +48,9 @@ updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.gSum,
 
 polyPlot()  # Some stuff here
 
-eqout = eqm( cfg, 10, true, false, pdout, W )
-eqin = eqm( cfg, 10, false, false, pdin, W )
-    # Inner approx gives a solution! :)
+eqout = eqm( cfg, 100, true, false, pdout, W )
+eqin = eqm( cfg, 10, false, false, pdin, eqout )
+    # Woooooot solutions!
 
 ### Now: Apply the incentive compatibility condition
 eqinIC1 = eqm( cfg, 1, false, true, pdin, eqin )
