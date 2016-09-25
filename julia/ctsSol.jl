@@ -79,15 +79,14 @@ function valsUpdate( conts::Array{Polygon, 2},
         # Incentive compatibility
     if outer
       ndir = size(dirs)[1]
-      dists = [ [ maximum( [ actionsets[iS,ib][ibprime][i]
-                                  for ibprime in 1:dw.nposs[iS,ib] ] )::Float64
-                                    for i in 1:ndir ]
+      dists = [ vec(maximum(hcat(actionsets[iS,ib]...),2))
                     for iS in 1:nS, ib in 1:nb ]
+          # The max distance in each direction
       out = [ Polygon(dirs=dirs, dists=dists[iS,ib])::Polygon
                 for iS in 1:nS, ib in 1:nb ]
           # Formulate union as maximum in each search direction
     else
-      out = [ Polygon( pts = vcat(actionsets[iS,ib]...))::Polygon
+      out = [ Polygon( pts = chull(vcat(actionsets[iS,ib]...)))::Polygon
                         for iS in 1:nS, ib in 1:nb ]
           # Take the union over the action-specific sets
     end
@@ -116,7 +115,10 @@ function eqm( cfg::CtsFiscalGame, maxiter::Int=200, outer::Bool=true,
   end
   if IC
     println("** Computing deviating values **")
-    vdev = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A )
+    vdev = devCont( cfg.dw, cfg.P, cfg.betta, cfg.rho, cfg.A, cfg.chi,
+                    cfg.psi, true )
+        # Return the deviating *continuation* only
+    evdev = cfg.P * vdev
   end
 
   println("** Main iteration **")
@@ -126,7 +128,7 @@ function eqm( cfg::CtsFiscalGame, maxiter::Int=200, outer::Bool=true,
     println("    Iteration ", it )
     if IC
       w_new = valsUpdate( w_old, pd, cfg.P, dirs, cfg.dw, cfg.gSum,
-                                cfg.rho, cfg.r, cfg.betta, outer, vdev )
+                                cfg.rho, cfg.r, cfg.betta, outer, evdev )
     else
       w_new = valsUpdate( w_old, pd, cfg.P, dirs, cfg.dw, cfg.gSum,
                                 cfg.rho, cfg.r, cfg.betta, outer )
@@ -141,9 +143,10 @@ function eqm( cfg::CtsFiscalGame, maxiter::Int=200, outer::Bool=true,
 
 end
 
-
+#############
 function devCont( dw::DWLC2, P::Matrix, betta::Float64, rho::Float64,
-                  A::Matrix, vbar_flag::Bool=false )
+                  A::Matrix, chi::Vector, psi::Vector,
+                  vbar_flag::Bool=false )
 
   vrho = [rho, 1-rho ]
   nS, nb = dw.nS, dw.nb
@@ -154,10 +157,13 @@ function devCont( dw::DWLC2, P::Matrix, betta::Float64, rho::Float64,
             A[iS,j], vrho[j] ) for iS in 1:nS, j in 1:2 ]
       # Period payoff
   vbar = inv( eye(nS) - betta * P ) * ( ( 1 - betta ) * wlim )
-      # Solves v* = (1-beta).ulim + beta.P.v*
+      # Solves v* = (1-beta).wlim + beta.P.v*
   if vbar_flag
     return vbar
   end
+
+### Can get rid of the below, I think?
+
   wdev = [ vrho[j] * w_eval( minimum(dw.Rlow[iS,ib,j]), chi[j], psi[j],
             minimum(dw.xlow[iS,ib,j]), dw.xhigh[iS,j], A[iS,j], vrho[j] )
             for iS in 1:nS, ib in 1:nb, j in 1:2 ]

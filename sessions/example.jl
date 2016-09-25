@@ -46,15 +46,25 @@ updateout = valsUpdate( W, pdout, cfg.P, dirs, cfg.dw, cfg.gSum,
 updatein = valsUpdate( W, pdin, cfg.P, dirs, cfg.dw, cfg.gSum,
                           cfg.rho, cfg.r, cfg.betta, false )
 
-polyPlot()  # Some stuff here
+# polyPlot()  # Some stuff here
 
-eqout = eqm( cfg, 100, true, false, pdout, W )
-eqin = eqm( cfg, 10, false, false, pdin, eqout )
+eqout = eqm( cfg, 200, true, false, pdout, W )
+eqin = eqm( cfg, 20, false, false, pdin, eqout )
     # Woooooot solutions!
 
 ### Now: Apply the incentive compatibility condition
+# eqoutIC = eqm( cfg, 5, true, true, pdout, eqout )
+# eqinIC = eqm( cfg, 5, false, true, pdin, eqin )
+eqoutIC1 = eqm( cfg, 1, true, true, pdout, eqout )
+eqhybIC1 = eqm( cfg, 1, true, true, pdin, eqin )
+  # Hybrid case: Outer apx using inner ctn
+eqhybIC1X = eqm( cfg, 1, false, true, pdin, eqout )
+  # Hybrid case 2: Inner apx using outer ctn
 eqinIC1 = eqm( cfg, 1, false, true, pdin, eqin )
-eqinIC2 = eqm( cfg, 2, false, true, pdin, eqinIC1 )
+
+save("/home/philip/Dropbox/data/2016/fiscalUnions/eg.jld", "cfg", cfg,
+      "eqout", eqout, "eqin", eqin, "eqoutIC", eqoutIC,
+      "eqinIC", eqinIC, "pdin", pdin, "pdout", pdout )
 
 # jldopen("/home/philip/Dropbox/data/2016/fiscalUnions/unc.jld", "w") do file
 #     addrequire(file, Polygons)

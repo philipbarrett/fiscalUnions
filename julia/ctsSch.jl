@@ -361,23 +361,26 @@ function search_ic( bprime::Float64, b::Float64,
     end
   end
 
-  objout = [ ( (1-betta) * ( dirs[i,1] * rho * pd_1( R1out[i] ) +
-                      dirs[i,2] * ( 1 - rho ) * pd_2( R2out[i] ) ) +
-                    betta * ( dirs[i,1] * v1out[i] +
-                              dirs[i,2] * v2out[i] ) )::Float64
-                                  for i in 1:ndir ]
+  # objout = [ ( (1-betta) * ( dirs[i,1] * rho * pd_1( R1out[i] ) +
+  #                     dirs[i,2] * ( 1 - rho ) * pd_2( R2out[i] ) ) +
+  #                   betta * ( dirs[i,1] * v1out[i] +
+  #                             dirs[i,2] * v2out[i] ) )::Float64
+  #                                 for i in 1:ndir ]
   W1out = [ ((1-betta) * rho * pd_1( R1out[i] ) + betta * v1out[i])::Float64
                     for i in 1:ndir ]
   W2out = [ ((1-betta) * rho * pd_2( R2out[i] ) + betta * v2out[i])::Float64
                     for i in 1:ndir ]
+  Wout = hcat( W1out, W2out )
+  objout = vec(sum( dirs .* Wout, 2 ))
+      # Create the outputs
   if output == "outer"
     return Polygon( dirs=dirs, dists=objout )
   elseif output == "inner"
-    return Polygon( pts = hcat( W1out, W2out ) )
+    return Polygon( pts = Wout )
   elseif output == "dists"
     return objout
   elseif output == "pts"
-    return hcat( W1out, W2out )
+    return Wout
   else
     return objout, W1out, W2out, R1out, R2out, v1out, v2out
   end
